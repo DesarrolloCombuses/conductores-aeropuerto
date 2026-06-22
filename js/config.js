@@ -18,6 +18,10 @@ window.APP_CONFIG = {
     SONAR_DESPACHOS_URL: "https://cbplebkmxrkaafqdhiyi.supabase.co/functions/v1/sonar-despachos",
     // Edge Function que cancela un despacho en Sonar
     SONAR_CANCEL_URL: "https://cbplebkmxrkaafqdhiyi.supabase.co/functions/v1/sonar-cancel",
+    // Edge Function que devuelve las asistencias (entradas/salidas) de un conductor por cédula
+    CONSULTAR_ASISTENCIAS_URL: "https://cbplebkmxrkaafqdhiyi.supabase.co/functions/v1/consultar-asistencias",
+    // Días por defecto de historial de asistencias a consultar (máx 90 en la Edge Function)
+    ASISTENCIAS_DIAS: 90,
     // Nombre de la tabla donde se guardan los despachos realizados
     TABLA_REALIZADOS: "despachos_realizados",
     // Tabla de vehículos para el despacho manual (columnas: ID, INTERNO, Placa)

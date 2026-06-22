@@ -178,6 +178,10 @@
         if (name === "realizados") {
             cargarRealizados();
         }
+        if (name === "asistencias") {
+            const inp = document.getElementById("asistenciasDni");
+            if (inp) setTimeout(function () { inp.focus(); }, 50);
+        }
     }
 
     function capitalize(s) {
@@ -2493,12 +2497,129 @@
         }
     }
 
+    // ============== Asistencias (ingresos/salidas de conductores) ==============
+    let asistenciasLoading = false;
+
+    function initAsistencias() {
+        const form = document.getElementById("asistenciasForm");
+        if (!form) return;
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            consultarAsistencias();
+        });
+    }
+
+    async function consultarAsistencias() {
+        const inp = document.getElementById("asistenciasDni");
+        const box = document.getElementById("asistenciasBox");
+        const subtitle = document.getElementById("asistenciasSubtitle");
+        const btn = document.getElementById("asistenciasBtn");
+        if (!inp || !box) return;
+
+        const dni = (inp.value || "").replace(/\D/g, "").trim();
+        if (!dni) {
+            box.innerHTML = `<div class="asis-empty">Escribe tu número de cédula.</div>`;
+            inp.focus();
+            return;
+        }
+        if (asistenciasLoading) return;
+        asistenciasLoading = true;
+        if (btn) btn.disabled = true;
+        box.innerHTML = `<div class="loading">Consultando...</div>`;
+        if (subtitle) subtitle.textContent = "Consultando cédula " + dni + "...";
+
+        try {
+            const resp = await fetch(cfg.CONSULTAR_ASISTENCIAS_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    apikey: cfg.SUPABASE_ANON_KEY,
+                    Authorization: "Bearer " + cfg.SUPABASE_ANON_KEY,
+                },
+                body: JSON.stringify({ dni: dni, dias: cfg.ASISTENCIAS_DIAS || 30 }),
+            });
+            const data = await resp.json().catch(function () { return {}; });
+            if (!resp.ok || !data.success) {
+                throw new Error(data.message || "Error " + resp.status);
+            }
+            renderAsistencias(data);
+        } catch (err) {
+            console.error(err);
+            box.innerHTML = `<div class="asis-empty asis-error">${escapeHtml(err.message || String(err))}</div>`;
+            if (subtitle) subtitle.textContent = "No se pudo consultar.";
+        } finally {
+            asistenciasLoading = false;
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    // Formatea una fecha "YYYY-MM-DD" a "dd/mm/yyyy" sin desfase de zona horaria.
+    function formatFechaSolo(f) {
+        if (!f) return "—";
+        const p = String(f).slice(0, 10).split("-");
+        if (p.length !== 3) return String(f);
+        return p[2] + "/" + p[1] + "/" + p[0];
+    }
+
+    // Formatea una hora "HH:MM:SS(.micro)" a "HH:MM".
+    function formatHoraSolo(h) {
+        if (!h) return "—";
+        const p = String(h).split(":");
+        if (p.length < 2) return String(h);
+        return p[0].padStart(2, "0") + ":" + p[1].padStart(2, "0");
+    }
+
+    function renderAsistencias(data) {
+        const box = document.getElementById("asistenciasBox");
+        const subtitle = document.getElementById("asistenciasSubtitle");
+        const filas = data.asistencias || [];
+        const nombre = (data.colaborador && data.colaborador.nombre) || "Conductor";
+
+        if (subtitle) {
+            subtitle.textContent = filas.length
+                ? nombre + " · " + filas.length + " registro(s) · últimos " + (data.dias || 30) + " días"
+                : nombre + " · sin registros en los últimos " + (data.dias || 30) + " días";
+        }
+
+        if (!filas.length) {
+            box.innerHTML = `<div class="asis-empty">No hay ingresos ni salidas registrados en este período.</div>`;
+            return;
+        }
+
+        const rows = filas.map(function (r) {
+            const esEntrada = String(r.sentido).toLowerCase() === "entrada";
+            const pill = esEntrada
+                ? `<span class="asis-pill asis-in">Entrada</span>`
+                : `<span class="asis-pill asis-out">Salida</span>`;
+            const lugar = [r.base_operativa, r.punto_operativo].filter(Boolean).join(" · ") || "—";
+            return `
+                <tr>
+                    <td class="asis-fecha">${escapeHtml(formatFechaSolo(r.fecha))}</td>
+                    <td class="hora">${escapeHtml(formatHoraSolo(r.hora))}</td>
+                    <td>${pill}</td>
+                    <td>${escapeHtml(lugar)}</td>
+                    <td>${escapeHtml(r.vehiculo_reporte || "—")}</td>
+                </tr>`;
+        }).join("");
+
+        box.innerHTML = `
+            <table class="tabla asis-tabla">
+                <thead>
+                    <tr>
+                        <th>Fecha</th><th>Hora</th><th>Tipo</th><th>Lugar</th><th>Bus</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+    }
+
     function startApp() {
         if (appStarted) return;
         appStarted = true;
         initTabs();
         initMap();
         initRealizadosControles();
+        initAsistencias();
         // En modo consulta no se inicializan los flujos de despacho/asignación.
         if (!MODO_CONSULTA) {
             initModal();

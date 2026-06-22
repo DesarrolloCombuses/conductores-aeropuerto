@@ -137,6 +137,14 @@
             <span>Despachos</span>
             <span id="tabRealizadosBadge" class="tab-badge">0</span>
         </button>
+        <button class="tab" data-tab="asistencias" role="tab" aria-selected="false">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 3H5a2 2 0 00-2 2v14a2 2 0 002 2h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 7h6M8 11h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>Asistencias</span>
+        </button>
     </nav>
 
     <main class="main">
@@ -221,6 +229,23 @@
 
             <div id="tablaBox" class="tabla-box">
                 <div class="loading">Cargando llegadas...</div>
+            </div>
+        </section>
+
+        <section id="paneAsistencias" class="pane" role="tabpanel">
+            <div class="despachos-head">
+                <div class="despachos-titles">
+                    <h2>Mis ingresos y salidas</h2>
+                    <div id="asistenciasSubtitle" class="despachos-subtitle">Ingresa tu cédula para consultar.</div>
+                </div>
+            </div>
+            <form id="asistenciasForm" class="asis-form" autocomplete="off">
+                <input type="text" id="asistenciasDni" class="search-input" inputmode="numeric"
+                    placeholder="Número de cédula" autocomplete="off" maxlength="15">
+                <button type="submit" id="asistenciasBtn" class="btn btn-primary btn-small">Consultar</button>
+            </form>
+            <div id="asistenciasBox" class="tabla-box despachos-box">
+                <div class="asis-empty">Escribe tu cédula y presiona Consultar para ver tu historial.</div>
             </div>
         </section>
     </main>
