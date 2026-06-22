@@ -1041,6 +1041,75 @@
         } catch (_) { /* noop */ }
     }
 
+    // ===== Pantalla de ayuda para los conductores =====
+    function inyectarEstilosAyuda() {
+        if (document.getElementById("ayudaStyles")) return;
+        const st = document.createElement("style");
+        st.id = "ayudaStyles";
+        st.textContent =
+            "#ayudaModal{position:fixed;inset:0;z-index:100002;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:18px;animation:da-fade .2s ease;}" +
+            "#ayudaModal .ay-card{background:#fff;border-radius:20px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;padding:26px 22px;box-shadow:0 24px 70px rgba(0,0,0,.35);}" +
+            "#ayudaModal h2{margin:0 0 6px;font-size:21px;color:#1e293b;font-weight:800;}" +
+            "#ayudaModal .ay-intro{margin:0 0 18px;font-size:14px;color:#64748b;}" +
+            "#ayudaModal h3{margin:18px 0 6px;font-size:15px;color:#4f46e5;font-weight:800;}" +
+            "#ayudaModal p{margin:0 0 8px;font-size:14px;color:#334155;line-height:1.5;}" +
+            "#ayudaModal ul{margin:0 0 8px;padding-left:18px;}" +
+            "#ayudaModal li{font-size:14px;color:#334155;line-height:1.7;}" +
+            "#ayudaModal .ay-note{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:6px;}" +
+            "#ayudaModal .ay-ok{background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:6px;}" +
+            "#ayudaModal button.ay-close{margin-top:20px;background:#4f46e5;color:#fff;border:0;border-radius:12px;padding:14px;font-size:16px;font-weight:800;cursor:pointer;width:100%;}";
+        document.head.appendChild(st);
+    }
+
+    function mostrarAyuda() {
+        if (document.getElementById("ayudaModal")) return;
+        inyectarEstilosAyuda();
+        const ios = esIOS();
+        const pasos = ios
+            ? "Toca <b>Compartir</b> (el cuadro con la flecha ↑) y elige <b>Agregar a inicio</b>."
+            : "Toca el botón verde <b>📲 Instalar app</b> (o el menú <b>⋮</b> → <b>Instalar app</b>).";
+
+        const modal = document.createElement("div");
+        modal.id = "ayudaModal";
+        modal.innerHTML =
+            '<div class="ay-card" role="dialog" aria-modal="true" aria-label="Cómo usar la app">' +
+                '<h2>📱 ¿Cómo usar la app?</h2>' +
+                '<p class="ay-intro">Guía rápida para los conductores.</p>' +
+
+                '<h3>¿Para qué sirve?</h3>' +
+                '<p>Consultas en vivo los vehículos en el <b>patio azul</b> del aeropuerto y recibes un <b>aviso</b> cada vez que se hace un despacho por un itinerario de <b>AEROPUERTO</b>.</p>' +
+
+                '<h3>Las pestañas</h3>' +
+                '<ul>' +
+                    '<li><b>Mapa:</b> dónde están los buses.</li>' +
+                    '<li><b>Listas:</b> vehículos en patio, por hora de llegada.</li>' +
+                    '<li><b>Alertas:</b> historial de los despachos avisados.</li>' +
+                    '<li><b>Realizados:</b> despachos con su estado (activo/cancelado).</li>' +
+                '</ul>' +
+
+                '<h3>📲 Instala la app</h3>' +
+                '<p>Para recibir los avisos, instálala en tu celular: ' + pasos + ' Luego ábrela desde el <b>ícono</b>.</p>' +
+
+                '<h3>🔔 Activa las notificaciones</h3>' +
+                '<p>Cuando la app te lo pida, toca <b>Activar notificaciones</b> y dale <b>Permitir</b>.</p>' +
+                '<div class="ay-ok">Consejo: mantén la app <b>abierta</b> mientras trabajas para escuchar el <b>sonido</b> del aviso.</div>' +
+
+                '<h3>⚠️ Revisar GPS</h3>' +
+                '<p>Si un bus aparece en <b>rojo</b> con <b>“REVISAR GPS”</b>, significa que lleva <b>más de 3 horas</b> en el patio. Hay que revisar su GPS.</p>' +
+
+                (ios
+                    ? '<div class="ay-note">En iPhone, las notificaciones solo funcionan con la app <b>instalada</b> (Agregar a inicio) y iOS 16.4 o más reciente.</div>'
+                    : '') +
+
+                '<button type="button" class="ay-close">Entendido</button>' +
+            '</div>';
+        document.body.appendChild(modal);
+
+        function cerrar() { modal.remove(); }
+        modal.querySelector(".ay-close").addEventListener("click", cerrar);
+        modal.addEventListener("click", function (e) { if (e.target === modal) cerrar(); });
+    }
+
     // ===== Pantalla obligatoria para activar notificaciones (conductores) =====
     function inyectarEstilosNotifGate() {
         if (document.getElementById("notifGateStyles")) return;
@@ -2365,6 +2434,9 @@
             document.addEventListener("touchstart", desbloquearAudio, { once: true });
             // Botón de instalación de la PWA (aparece cuando Chrome la reconoce).
             configurarInstalacion();
+            // Botón de ayuda en la barra superior.
+            const btnAyuda = document.getElementById("btnAyuda");
+            if (btnAyuda) btnAyuda.addEventListener("click", mostrarAyuda);
             // Pantalla obligatoria para activar las notificaciones.
             mostrarNotifGate();
         }
