@@ -259,20 +259,26 @@
     }
 
     // ============== Stats ==============
+    function setText(id, value) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = String(value);
+    }
+
     function updateStats() {
         const total = rows.length;
         const listos = rows.filter(function (r) { return r.listo; }).length;
         const espera = total - listos;
 
-        document.getElementById("statTotal").textContent = String(total);
-        document.getElementById("statListos").textContent = String(listos);
-        document.getElementById("statEspera").textContent = String(espera);
+        // En modo consulta solo se muestra el Total; los demás pueden no existir.
+        setText("statTotal", total);
+        setText("statListos", listos);
+        setText("statEspera", espera);
 
-        document.getElementById("miniTotal").textContent = String(total);
-        document.getElementById("miniListos").textContent = String(listos);
-        document.getElementById("miniEspera").textContent = String(espera);
+        setText("miniTotal", total);
+        setText("miniListos", listos);
+        setText("miniEspera", espera);
 
-        document.getElementById("tabListasBadge").textContent = String(total);
+        setText("tabListasBadge", total);
     }
 
     // ============== Tabla y chips ==============
@@ -408,23 +414,37 @@
             return ta - tb;
         });
 
+        // Un bus que lleva más de 3 horas en la lista probablemente tiene un
+        // problema de GPS (no se actualizó la salida): hay que revisarlo.
+        const ahora = Date.now();
+        let cuentaGps = 0;
         const filas = ordenadas.map(function (r, i) {
             const hace = humanizeAge(r.hora_llegada);
-            const estadoCls = r.listo ? "listo" : "espera";
-            const estadoTxt = r.listo ? "LISTO" : "ESPERA";
+            const llegadaMs = new Date(r.hora_llegada).getTime();
+            const horas = Number.isFinite(llegadaMs) ? (ahora - llegadaMs) / 3600000 : 0;
+            const revisarGps = horas > 3;
+            if (revisarGps) cuentaGps++;
+            const estadoHtml = revisarGps
+                ? '<span class="estado-pill gps-alert">⚠️ REVISAR GPS</span>'
+                : '<span class="estado-pill espera">En espera</span>';
             return `
-                <tr>
+                <tr class="${revisarGps ? "fila-gps-alert" : ""}">
                     <td class="pos">${i + 1}</td>
                     <td class="hora">${escapeHtml(formatHora(r.hora_llegada))}</td>
                     <td class="hace">${escapeHtml(hace)}</td>
                     <td class="interno">${escapeHtml(r.interno || "")}</td>
                     <td>${escapeHtml(r.itinerario || "Sin itinerario")}</td>
-                    <td><span class="estado-pill ${estadoCls}">${estadoTxt}</span></td>
+                    <td>${estadoHtml}</td>
                 </tr>
             `;
         }).join("");
 
-        tablaBox.innerHTML = `
+        // Aviso resumen arriba de la tabla si hay buses por revisar.
+        const avisoGps = cuentaGps
+            ? `<div class="gps-banner">⚠️ ${cuentaGps} ${cuentaGps === 1 ? "bus lleva" : "buses llevan"} más de 3 horas — revisar por GPS</div>`
+            : "";
+
+        tablaBox.innerHTML = avisoGps + `
             <div class="itin-group">
                 <table class="arrivals consulta-arrivals">
                     <thead>
