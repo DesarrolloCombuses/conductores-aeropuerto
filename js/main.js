@@ -138,6 +138,7 @@
     let realizadosChannel = null;
     let realizadosPage = 1;
     let realizadosSearch = "";
+    let realizadosItinSel = null; // itinerario seleccionado en los chips (modo consulta)
     const REALIZADOS_PAGE_SIZE = 25;
     const CANCEL_WINDOW_MS = 60 * 60 * 1000; // 1 hora
 
@@ -1239,9 +1240,10 @@
 
         // Notificación del sistema (estilo PWA), además del banner dentro de la app.
         const busTxt = String(reg.interno || reg.vehicle_id || "—");
+        const itinTxt = reg.itinerario || "Sin itinerario";
         notificacionSistema(
             "¡Nuevo despacho! Bus " + busTxt,
-            (reg.itinerario || "Sin itinerario") + " · " + formatHora(reg.created_at)
+            "Será despachado por: " + itinTxt
         );
 
         const previa = document.getElementById("despachoAlert");
@@ -1263,7 +1265,7 @@
                 '</div>' +
                 '<h2>¡Nuevo despacho!</h2>' +
                 '<div class="da-bus">Bus ' + bus + '</div>' +
-                '<div class="da-itin">' + itin + '</div>' +
+                '<div class="da-itin">Será despachado por:<br><b>' + itin + '</b></div>' +
                 '<div class="da-hora">' + hora + '</div>' +
                 '<button type="button">Entendido</button>' +
             '</div>';
@@ -1289,6 +1291,45 @@
         return false;
     }
 
+    // Chips de itinerario para la pestaña Realizados (modo consulta).
+    function renderRealizadosChips(base) {
+        const chipsBox = document.getElementById("realizadosChips");
+        if (!chipsBox) return;
+
+        // Conteo por itinerario (respetando el filtro "Solo activos")
+        const fuente = realizadosFiltroActivos
+            ? base.filter(function (r) { return r.estado === "ACTIVO"; })
+            : base;
+        const grupos = {};
+        fuente.forEach(function (r) {
+            const k = r.itinerario || "Sin itinerario";
+            grupos[k] = (grupos[k] || 0) + 1;
+        });
+        const itins = Object.keys(grupos).sort();
+
+        // Si el itinerario seleccionado ya no existe, volver a "Todos"
+        if (realizadosItinSel && !itins.includes(realizadosItinSel)) realizadosItinSel = null;
+
+        const total = fuente.length;
+        const chipsHtml = [
+            '<button type="button" class="chip ' + (realizadosItinSel === null ? "active" : "") + '" data-itin="">' +
+                'Todos<span class="chip-count">' + total + '</span></button>',
+        ].concat(itins.map(function (itin) {
+            return '<button type="button" class="chip ' + (realizadosItinSel === itin ? "active" : "") + '" data-itin="' + escapeHtml(itin) + '">' +
+                escapeHtml(itin) + '<span class="chip-count">' + grupos[itin] + '</span></button>';
+        })).join("");
+        chipsBox.innerHTML = chipsHtml;
+
+        chipsBox.querySelectorAll(".chip").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                const val = btn.getAttribute("data-itin");
+                realizadosItinSel = val ? val : null;
+                realizadosPage = 1;
+                renderRealizados();
+            });
+        });
+    }
+
     function renderRealizados() {
         const box = document.getElementById("realizadosBox");
         const subtitle = document.getElementById("realizadosSubtitle");
@@ -1304,10 +1345,18 @@
             ? realizados.filter(esDespachoAeropuerto)
             : realizados;
 
+        // Chips de filtro por itinerario (separar los despachos por ruta).
+        if (MODO_CONSULTA) renderRealizadosChips(base);
+
         const q = (realizadosSearch || "").toLowerCase().trim();
         let visibles = realizadosFiltroActivos
             ? base.filter(function (r) { return r.estado === "ACTIVO"; })
             : base.slice();
+        if (MODO_CONSULTA && realizadosItinSel) {
+            visibles = visibles.filter(function (r) {
+                return (r.itinerario || "Sin itinerario") === realizadosItinSel;
+            });
+        }
         if (q) visibles = visibles.filter(function (r) { return realizadoMatchesSearch(r, q); });
 
         if (badge) badge.textContent = String(visibles.length);
