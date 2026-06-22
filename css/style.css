@@ -1899,3 +1899,89 @@ input[readonly] {
 .chips::-webkit-scrollbar-thumb:hover {
     background: var(--gray-400);
 }
+
+/* ============================================================
+   AJUSTES MÓVIL — App de conductores (vistas de consulta)
+   Anula reglas heredadas de la app original y optimiza tablas
+   para que se vea perfecta en el celular.
+   ============================================================ */
+@media (max-width: 600px) {
+    /* Quitar el chevron "›" heredado y restaurar el último encabezado/celda */
+    table.consulta-arrivals td:last-child::after,
+    table.realizados-consulta td:last-child::after { content: none; }
+    table.consulta-arrivals th:last-child,
+    table.realizados-consulta th:last-child {
+        font-size: 11px;
+        width: auto;
+        text-align: left;
+        padding: 9px 8px;
+    }
+    table.consulta-arrivals td:last-child,
+    table.realizados-consulta td:last-child {
+        width: auto;
+        text-align: left;
+        padding: 9px 8px;
+    }
+
+    /* Celdas compactas y legibles */
+    table.consulta-arrivals th, table.consulta-arrivals td,
+    table.realizados-consulta th, table.realizados-consulta td {
+        padding: 9px 8px;
+        font-size: 12px;
+    }
+
+    /* El itinerario puede ocupar varias líneas (no recortar) */
+    table.consulta-arrivals td:nth-child(5),
+    table.realizados-consulta td:nth-child(4) {
+        white-space: normal;
+        line-height: 1.25;
+        font-size: 11px;
+    }
+
+    /* Realizados: ocultar Pasajeros (5) y Observaciones (6) en móvil */
+    table.realizados-consulta th:nth-child(5), table.realizados-consulta td:nth-child(5),
+    table.realizados-consulta th:nth-child(6), table.realizados-consulta td:nth-child(6) {
+        display: none;
+    }
+
+    /* El badge "REVISAR GPS" debajo del bus, no a un lado, para no romper */
+    table.consulta-arrivals td.interno .estado-pill.gps-alert {
+        display: inline-block;
+        margin-top: 4px;
+        font-size: 10px;
+    }
+
+    /* Tabs: scroll horizontal si las 4 no caben */
+    .tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { flex-shrink: 0; }
+
+    /* Alertas: tarjetas compactas */
+    .alertas-box { padding: 12px; gap: 8px; }
+    .alert-card { padding: 12px 14px; }
+    .alert-card-bus { font-size: 15px; }
+    .alert-card-itin { font-size: 13px; }
+
+    /* Encabezado de Realizados/Alertas: que el buscador no se desborde */
+    .despachos-head { gap: 8px; }
+    .despachos-actions { width: 100%; }
+    .search-input { flex: 1; min-width: 0; }
+}
+
+@media (max-width: 380px) {
+    /* Anular el "ocultar columna 3" heredado: en consulta tapa datos clave
+       (en Realizados llegaría a ocultar la columna Bus). */
+    table.consulta-arrivals th:nth-child(3), table.consulta-arrivals td:nth-child(3),
+    table.realizados-consulta th:nth-child(3), table.realizados-consulta td:nth-child(3) {
+        display: table-cell;
+    }
+    /* En su lugar ocultamos "Hora" (redundante con "Hace") en pantallas chicas */
+    table.consulta-arrivals th:nth-child(2), table.consulta-arrivals td:nth-child(2),
+    table.realizados-consulta th:nth-child(1), table.realizados-consulta td:nth-child(1) {
+        display: none;
+    }
+}

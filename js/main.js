@@ -1483,7 +1483,7 @@
         }).join("");
 
         box.innerHTML = MODO_CONSULTA ? `
-            <table class="arrivals">
+            <table class="arrivals realizados-consulta">
                 <thead>
                     <tr>
                         <th>Hora</th>
