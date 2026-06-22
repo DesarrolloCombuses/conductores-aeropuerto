@@ -424,17 +424,16 @@
             const horas = Number.isFinite(llegadaMs) ? (ahora - llegadaMs) / 3600000 : 0;
             const revisarGps = horas > 3;
             if (revisarGps) cuentaGps++;
-            const estadoHtml = revisarGps
-                ? '<span class="estado-pill gps-alert">⚠️ REVISAR GPS</span>'
-                : '<span class="estado-pill espera">En espera</span>';
+            const gpsBadge = revisarGps
+                ? ' <span class="estado-pill gps-alert">⚠️ REVISAR GPS</span>'
+                : '';
             return `
                 <tr class="${revisarGps ? "fila-gps-alert" : ""}">
                     <td class="pos">${i + 1}</td>
                     <td class="hora">${escapeHtml(formatHora(r.hora_llegada))}</td>
                     <td class="hace">${escapeHtml(hace)}</td>
-                    <td class="interno">${escapeHtml(r.interno || "")}</td>
+                    <td class="interno">${escapeHtml(r.interno || "")}${gpsBadge}</td>
                     <td>${escapeHtml(r.itinerario || "Sin itinerario")}</td>
-                    <td>${estadoHtml}</td>
                 </tr>
             `;
         }).join("");
@@ -454,7 +453,6 @@
                             <th>Hace</th>
                             <th>Bus</th>
                             <th>Itinerario</th>
-                            <th>Estado</th>
                         </tr>
                     </thead>
                     <tbody>${filas}</tbody>
