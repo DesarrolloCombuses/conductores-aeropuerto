@@ -1152,6 +1152,45 @@
         refrescarEstado();
     }
 
+    // ===== Botón de instalación de la PWA dentro de la app =====
+    // Chrome no siempre muestra "Instalar app" en su menú; capturamos el evento
+    // beforeinstallprompt y ofrecemos un botón claro para instalar.
+    let deferredInstallPrompt = null;
+
+    function configurarInstalacion() {
+        window.addEventListener("beforeinstallprompt", function (e) {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            mostrarBotonInstalar();
+        });
+        window.addEventListener("appinstalled", function () {
+            deferredInstallPrompt = null;
+            const b = document.getElementById("btnInstalar");
+            if (b) b.remove();
+        });
+    }
+
+    function mostrarBotonInstalar() {
+        if (!deferredInstallPrompt) return;
+        if (document.getElementById("btnInstalar")) return;
+        if (appInstaladaPWA()) return;
+        const b = document.createElement("button");
+        b.id = "btnInstalar";
+        b.type = "button";
+        b.textContent = "📲 Instalar app";
+        b.style.cssText = "position:fixed;left:16px;bottom:16px;z-index:99998;background:#16a34a;color:#fff;border:0;border-radius:30px;padding:12px 18px;font-size:14px;font-weight:800;box-shadow:0 6px 20px rgba(22,163,74,.45);cursor:pointer;";
+        b.addEventListener("click", async function () {
+            if (!deferredInstallPrompt) return;
+            try {
+                deferredInstallPrompt.prompt();
+                await deferredInstallPrompt.userChoice;
+            } catch (_) { /* noop */ }
+            deferredInstallPrompt = null;
+            b.remove();
+        });
+        document.body.appendChild(b);
+    }
+
     // Muestra una notificación del sistema operativo (PWA). Funciona con la app
     // abierta o minimizada; con la app totalmente cerrada haría falta Web Push.
     function notificacionSistema(titulo, cuerpo) {
@@ -2217,6 +2256,8 @@
             // Desbloquear el audio en el primer gesto del conductor.
             document.addEventListener("click", desbloquearAudio, { once: true });
             document.addEventListener("touchstart", desbloquearAudio, { once: true });
+            // Botón de instalación de la PWA (aparece cuando Chrome la reconoce).
+            configurarInstalacion();
             // Pantalla obligatoria para activar las notificaciones.
             mostrarNotifGate();
             // Botón temporal para probar la alerta.
