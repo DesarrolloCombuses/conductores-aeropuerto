@@ -1299,17 +1299,22 @@
         const pagerNext = document.getElementById("pagerNext");
         if (!box) return;
 
+        // En modo consulta solo mostramos despachos del grupo AEROPUERTO.
+        const base = MODO_CONSULTA
+            ? realizados.filter(esDespachoAeropuerto)
+            : realizados;
+
         const q = (realizadosSearch || "").toLowerCase().trim();
         let visibles = realizadosFiltroActivos
-            ? realizados.filter(function (r) { return r.estado === "ACTIVO"; })
-            : realizados.slice();
+            ? base.filter(function (r) { return r.estado === "ACTIVO"; })
+            : base.slice();
         if (q) visibles = visibles.filter(function (r) { return realizadoMatchesSearch(r, q); });
 
         if (badge) badge.textContent = String(visibles.length);
         if (subtitle) {
-            const activos = realizados.filter(function (r) { return r.estado === "ACTIVO"; }).length;
-            const cancelados = realizados.length - activos;
-            subtitle.textContent = `${activos} activos · ${cancelados} cancelados · ${realizados.length} totales`;
+            const activos = base.filter(function (r) { return r.estado === "ACTIVO"; }).length;
+            const cancelados = base.length - activos;
+            subtitle.textContent = `${activos} activos · ${cancelados} cancelados · ${base.length} totales`;
         }
 
         if (!visibles.length) {
