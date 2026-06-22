@@ -1,4 +1,5 @@
 {
+    "id": "/conductores-aeropuerto/",
     "name": "Consulta Llegadas JMC - Conductores",
     "short_name": "Consulta JMC",
     "description": "Consulta en tiempo real de llegadas y despachos al Aeropuerto JMC para conductores - Combuses",
