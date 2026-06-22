@@ -1170,7 +1170,13 @@
                 avisoPush("Este navegador no soporta notificaciones push.", false); return;
             }
             if (!cfg.VAPID_PUBLIC_KEY) return;
-            if (!("Notification" in window) || Notification.permission !== "granted") return;
+            if (!("Notification" in window)) {
+                avisoPush("Este navegador no tiene notificaciones.", false); return;
+            }
+            if (Notification.permission !== "granted") {
+                avisoPush("Falta dar permiso de notificaciones (permiso: " + Notification.permission + ").", false);
+                return;
+            }
 
             const reg = await navigator.serviceWorker.ready;
             let sub = await reg.pushManager.getSubscription();
