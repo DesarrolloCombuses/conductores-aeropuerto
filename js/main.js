@@ -964,6 +964,22 @@
         } catch (_) { /* noop */ }
     }
 
+    // Alarma: varias ráfagas de beep para que se oiga aunque haya ruido.
+    function reproducirAlarma() {
+        reproducirBeep();
+        setTimeout(reproducirBeep, 650);
+        setTimeout(reproducirBeep, 1300);
+    }
+
+    // ¿La app está instalada como PWA (modo standalone)?
+    function appInstaladaPWA() {
+        try {
+            return window.matchMedia("(display-mode: standalone)").matches ||
+                window.matchMedia("(display-mode: fullscreen)").matches ||
+                window.navigator.standalone === true;
+        } catch (_) { return false; }
+    }
+
     function inyectarEstilosAlerta() {
         if (document.getElementById("despachoAlertStyles")) return;
         const st = document.createElement("style");
@@ -1029,25 +1045,50 @@
         if (g) g.remove();
     }
 
-    // Muestra la pantalla de activación si las notificaciones no están concedidas.
+    // Pide el permiso de notificaciones (tras un gesto) y cierra el gate si se concede.
+    function solicitarPermisoNotif(onResultado) {
+        desbloquearAudio();
+        if (Notification.permission === "granted") { onResultado("granted"); return; }
+        if (Notification.permission === "denied") { onResultado("denied"); return; }
+        Promise.resolve(Notification.requestPermission())
+            .then(function (perm) { onResultado(perm); })
+            .catch(function () { onResultado("denied"); });
+    }
+
+    // Pantalla de bienvenida: guía a instalar la PWA y a activar notificaciones.
+    // Con la app abierta, el aviso (banner + sonido) funciona sin permisos; las
+    // notificaciones del sistema son un extra que mejora si la PWA está instalada.
     function mostrarNotifGate() {
-        if (!("Notification" in window)) return; // navegador sin soporte
+        if (!("Notification" in window)) return;
         if (Notification.permission === "granted") return; // ya activadas
         if (document.getElementById("notifGate")) return;
 
         inyectarEstilosNotifGate();
+        const instalada = appInstaladaPWA();
         const gate = document.createElement("div");
         gate.id = "notifGate";
+
+        const pasosInstalar =
+            "<b>En Android (Chrome):</b><br>" +
+            "1. Toca el menú <b>⋮</b> (arriba a la derecha).<br>" +
+            "2. Elige <b>Instalar app</b> o <b>Agregar a pantalla de inicio</b>.<br>" +
+            "3. Abre la app desde el <b>ícono</b> que aparece en tu celular.";
+
         gate.innerHTML =
             '<div class="ng-card">' +
                 '<div class="ng-bell">' +
                     '<svg width="42" height="42" viewBox="0 0 24 24" fill="none"><path d="M12 2a6 6 0 0 0-6 6c0 4-2 5-2 7h16c0-2-2-3-2-7a6 6 0 0 0-6-6zm0 20a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z" fill="#4f46e5"/></svg>' +
                 '</div>' +
-                '<h2>Activa las notificaciones</h2>' +
-                '<p>Para enterarte al instante de cada <b>despacho</b>, esta app necesita enviarte avisos. Es necesario para tu trabajo.</p>' +
-                '<button type="button" class="ng-main">🔔 Activar notificaciones</button>' +
-                '<div class="ng-help"></div>' +
-                '<button type="button" class="ng-skip">Continuar sin activar por ahora</button>' +
+                '<h2>' + (instalada ? "Activa las notificaciones" : "Instala la app") + '</h2>' +
+                '<p>' + (instalada
+                    ? "Para enterarte al instante de cada <b>despacho</b>, activa los avisos."
+                    : "Para recibir los avisos de despacho, primero <b>instala</b> esta app en tu celular.") + '</p>' +
+                (instalada
+                    ? '<button type="button" class="ng-main">🔔 Activar notificaciones</button>'
+                    : '<div class="ng-help" style="display:block">' + pasosInstalar + '</div>' +
+                      '<button type="button" class="ng-main">Ya la instalé · Activar avisos</button>') +
+                (instalada ? '<div class="ng-help"></div>' : '') +
+                '<button type="button" class="ng-skip">Continuar (la app sonará igual estando abierta)</button>' +
                 '<div class="ng-estado"></div>' +
             '</div>';
         document.body.appendChild(gate);
@@ -1057,36 +1098,29 @@
         const estado = gate.querySelector(".ng-estado");
 
         function refrescarEstado() {
-            const p = ("Notification" in window) ? Notification.permission : "no-soportado";
-            estado.textContent = "Estado del permiso: " + p;
+            estado.textContent = "Estado: " + (instalada ? "instalada · " : "no instalada · ") +
+                "permiso " + Notification.permission;
         }
 
-        function mostrarAyuda() {
+        function mostrarAyudaBloqueado() {
             help.style.display = "block";
-            help.innerHTML = "Las notificaciones están <b>bloqueadas</b> en este navegador. Para activarlas:<br>" +
-                "1. Toca el <b>candado 🔒</b> (o los 3 puntos) junto a la dirección.<br>" +
-                "2. Entra en <b>Permisos</b> → <b>Notificaciones</b>.<br>" +
-                "3. Ponlas en <b>Permitir</b>.<br>" +
-                "4. Vuelve a esta pantalla (se cerrará sola).";
+            help.innerHTML = "Las notificaciones están <b>bloqueadas</b>. Para activarlas:<br>" +
+                "1. Toca el <b>candado 🔒</b> junto a la dirección.<br>" +
+                "2. Entra en <b>Permisos</b> → <b>Notificaciones</b> → <b>Permitir</b>.<br>" +
+                "3. Vuelve a la app (se cierra sola).";
         }
 
         btn.addEventListener("click", function () {
-            desbloquearAudio(); // aprovechamos el gesto para habilitar el sonido
-            if (Notification.permission === "granted") { cerrarNotifGate(); return; }
-            if (Notification.permission === "denied") { mostrarAyuda(); refrescarEstado(); return; }
-            // permission === "default": pedimos el permiso
-            Promise.resolve(Notification.requestPermission()).then(function (perm) {
+            solicitarPermisoNotif(function (perm) {
                 refrescarEstado();
                 if (perm === "granted") cerrarNotifGate();
-                else mostrarAyuda();
-            }).catch(function () { mostrarAyuda(); refrescarEstado(); });
+                else if (perm === "denied") mostrarAyudaBloqueado();
+            });
         });
 
-        // Salida para no dejar al conductor atascado si no puede activarlas.
         gate.querySelector(".ng-skip").addEventListener("click", cerrarNotifGate);
 
-        // Si el conductor activa el permiso en Ajustes y vuelve a la app,
-        // detectamos el cambio y cerramos la pantalla automáticamente.
+        // Si activa el permiso en Ajustes y vuelve, cerramos la pantalla sola.
         document.addEventListener("visibilitychange", function () {
             if (document.visibilityState === "visible" &&
                 "Notification" in window && Notification.permission === "granted") {
@@ -1094,7 +1128,7 @@
             }
         });
 
-        if (Notification.permission === "denied") mostrarAyuda();
+        if (Notification.permission === "denied") mostrarAyudaBloqueado();
         refrescarEstado();
     }
 
@@ -1143,8 +1177,8 @@
 
     function notificarDespacho(reg) {
         inyectarEstilosAlerta();
-        reproducirBeep();
-        try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (_) {}
+        reproducirAlarma();
+        try { if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]); } catch (_) {}
 
         // Notificación del sistema (estilo PWA), además del banner dentro de la app.
         const busTxt = String(reg.interno || reg.vehicle_id || "—");
