@@ -2649,15 +2649,20 @@
         });
     }
 
-    // Formatea un ISO a "dd/mm HH:MM" en hora local.
-    function formatFechaHoraCorta(iso) {
+    // Formatea un ISO a fecha "dd/mm/yyyy" en hora local.
+    function formatFechaISO(iso) {
         const d = new Date(iso);
         if (isNaN(d.getTime())) return "—";
         const dd = String(d.getDate()).padStart(2, "0");
         const mm = String(d.getMonth() + 1).padStart(2, "0");
-        const hh = String(d.getHours()).padStart(2, "0");
-        const mi = String(d.getMinutes()).padStart(2, "0");
-        return dd + "/" + mm + " " + hh + ":" + mi;
+        return dd + "/" + mm + "/" + d.getFullYear();
+    }
+
+    // Formatea un ISO a hora legible "3:24 p. m." en hora local.
+    function formatHoraISO(iso) {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return "—";
+        return d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
     }
 
     async function consultarDespachosDia() {
@@ -2720,15 +2725,11 @@
         }
 
         const rows = filas.map(function (r) {
-            const activo = r.estado === "ACTIVO";
-            const pill = activo
-                ? `<span class="asis-pill asis-in">Activo</span>`
-                : `<span class="asis-pill asis-out">Cancelado</span>`;
             return `
                 <tr>
-                    <td class="asis-fecha">${escapeHtml(formatFechaHoraCorta(r.created_at))}</td>
+                    <td class="asis-fecha">${escapeHtml(formatFechaISO(r.created_at))}</td>
+                    <td class="hora">${escapeHtml(formatHoraISO(r.created_at))}</td>
                     <td>${escapeHtml(r.itinerario || "Sin itinerario")}</td>
-                    <td>${pill}</td>
                 </tr>`;
         }).join("");
 
@@ -2736,7 +2737,7 @@
             <table class="asis-tabla">
                 <thead>
                     <tr>
-                        <th>Fecha y hora</th><th>Itinerario</th><th>Estado</th>
+                        <th>Fecha</th><th>Hora</th><th>Itinerario</th>
                     </tr>
                 </thead>
                 <tbody>${rows}</tbody>
