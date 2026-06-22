@@ -2838,61 +2838,117 @@
         }
     }
 
+    // Normaliza un nombre de puesto/terminal para agrupar (sin tildes, espacios
+    // alrededor de guiones colapsados, mayúsculas).
+    function normPuesto(s) {
+        return String(s || "")
+            .normalize("NFD").replace(/[̀-ͯ]/g, "")
+            .toUpperCase()
+            .replace(/\s*-\s*/g, "-")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+
+    // "2026-06-23" -> "23 DE JUNIO DE 2026"
+    function formatFechaLarga(iso) {
+        const meses = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
+            "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+        const p = String(iso).slice(0, 10).split("-");
+        if (p.length !== 3) return String(iso);
+        return parseInt(p[2], 10) + " DE " + (meses[parseInt(p[1], 10) - 1] || "") + " DE " + p[0];
+    }
+
     function renderProgramacion(fecha, filas) {
         const box = document.getElementById("programacionBox");
         const subtitle = document.getElementById("programacionSubtitle");
         if (subtitle) subtitle.textContent = formatFechaSolo(fecha);
 
-        // Interpretar cada fila (ruta + horarios) y ordenar por la primera hora.
-        const items = filas.map(function (f) {
-            const info = parseRowKey(f.row_key);
-            return {
-                vehiculo: f.vehiculo || "—",
-                ruta: info.ruta,
-                horas: info.horas,
-                primeraHora: info.primeraHora,
-            };
-        }).sort(function (a, b) {
-            // Sin hora (ej. comodines) al final.
-            if (!a.primeraHora && b.primeraHora) return 1;
-            if (a.primeraHora && !b.primeraHora) return -1;
-            if (a.primeraHora !== b.primeraHora) return a.primeraHora.localeCompare(b.primeraHora);
-            return String(a.vehiculo).localeCompare(String(b.vehiculo));
-        });
-
-        const cabecera =
-            `<div class="asis-persona">` +
-                `<div class="asis-persona-nombre">Programación ${escapeHtml(formatFechaSolo(fecha))}</div>` +
-                `<div class="asis-persona-meta">` +
-                    (items.length ? items.length + " vehículo(s) programado(s)" : "Sin programación para esta fecha") +
-                `</div>` +
-            `</div>`;
-
-        if (!items.length) {
-            box.innerHTML = cabecera +
+        if (!filas.length) {
+            box.innerHTML =
+                `<div class="asis-persona"><div class="asis-persona-nombre">Programación ${escapeHtml(formatFechaSolo(fecha))}</div>` +
+                `<div class="asis-persona-meta">Sin programación para esta fecha</div></div>` +
                 `<div class="asis-empty">No hay programación cargada para este día.</div>`;
             return;
         }
 
-        const rows = items.map(function (r) {
-            const horarios = r.horas.length ? r.horas.join(" · ") : "—";
-            return `
-                <tr>
-                    <td class="asis-fecha">${escapeHtml(r.vehiculo)}</td>
-                    <td>${escapeHtml(r.ruta)}</td>
-                    <td class="hora">${escapeHtml(horarios)}</td>
-                </tr>`;
-        }).join("");
+        // Agrupar por PUESTO (terminal). El nombre del puesto viene en row_data;
+        // si faltara, se usa el segmento del row_key.
+        const grupos = new Map();
+        filas.forEach(function (f) {
+            const rd = f.row_data || {};
+            // Saltar las filas FICHO/comodín (su "#" no es un turno numérico):
+            // no se muestran en el visor operativo.
+            if (isNaN(parseInt(rd["#"], 10))) return;
+            const puestoRaw = rd["PUESTO"] || parseRowKey(f.row_key).ruta || "SIN PUESTO";
+            const key = normPuesto(puestoRaw);
+            if (!grupos.has(key)) {
+                grupos.set(key, { display: String(puestoRaw).toUpperCase().trim(), items: [] });
+            }
+            grupos.get(key).items.push({
+                numero: rd["#"] != null ? rd["#"] : "",
+                inicia1: rd["INICIA"] || "",
+                veh: rd["VEH"] != null && rd["VEH"] !== "" ? rd["VEH"] : (f.vehiculo || ""),
+                cond1: rd["CONDUCTOR 1"] || "",
+                inicia2: rd["INICIA 2"] || "",
+                cond2: rd["CONDUCTOR 2"] || "",
+                horafin: rd["HORA FIN"] || "",
+            });
+        });
 
-        box.innerHTML = cabecera + `
-            <table class="asis-tabla">
-                <thead>
+        // Orden de terminales: primero los conocidos, luego el resto alfabético.
+        const ordenPref = ["TERMINAL DEL NORTE", "SAN DIEGO", "NUTIBARA-EXPOSICIONES"];
+        const secciones = Array.from(grupos.keys()).sort(function (a, b) {
+            const ia = ordenPref.indexOf(a), ib = ordenPref.indexOf(b);
+            if (ia !== -1 || ib !== -1) {
+                return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+            }
+            return a.localeCompare(b);
+        });
+
+        const titulo = formatFechaLarga(fecha);
+        const conductorTxt = function (c) {
+            return c && String(c).trim() ? escapeHtml(c) : `<span class="prog-sincond">SIN CONDUCTOR PROGRAMADO</span>`;
+        };
+
+        let html = "";
+        secciones.forEach(function (key) {
+            const sec = grupos.get(key);
+            // Ordenar por número de turno (#) ascendente.
+            sec.items.sort(function (a, b) {
+                const na = parseInt(a.numero, 10), nb = parseInt(b.numero, 10);
+                if (!isNaN(na) && !isNaN(nb)) return na - nb;
+                return String(a.numero).localeCompare(String(b.numero));
+            });
+            const filasHtml = sec.items.map(function (r) {
+                return `
                     <tr>
-                        <th>Vehículo</th><th>Ruta</th><th>Horarios</th>
-                    </tr>
-                </thead>
-                <tbody>${rows}</tbody>
-            </table>`;
+                        <td class="prog-num">${escapeHtml(String(r.numero))}</td>
+                        <td class="hora">${escapeHtml(r.inicia1)}</td>
+                        <td class="prog-veh">${escapeHtml(String(r.veh))}</td>
+                        <td class="prog-cond">${conductorTxt(r.cond1)}</td>
+                        <td class="hora">${escapeHtml(r.inicia2)}</td>
+                        <td class="prog-cond">${conductorTxt(r.cond2)}</td>
+                        <td class="hora">${escapeHtml(r.horafin)}</td>
+                    </tr>`;
+            }).join("");
+            html += `
+                <div class="prog-seccion">
+                    <div class="prog-titulo">${escapeHtml(sec.display + " " + titulo)}</div>
+                    <div class="prog-scroll">
+                        <table class="prog-tabla">
+                            <thead>
+                                <tr>
+                                    <th>#</th><th>INICIA</th><th>VEH</th><th>CONDUCTOR 1</th>
+                                    <th>INICIA</th><th>CONDUCTOR 2</th><th>HORA FIN</th>
+                                </tr>
+                            </thead>
+                            <tbody>${filasHtml}</tbody>
+                        </table>
+                    </div>
+                </div>`;
+        });
+
+        box.innerHTML = html;
     }
 
     function startApp() {

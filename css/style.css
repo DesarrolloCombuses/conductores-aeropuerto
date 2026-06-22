@@ -2112,3 +2112,66 @@ input[readonly] {
         flex-shrink: 0;
     }
 }
+
+/* ============== Visor de Programación (operativo por terminal) ============== */
+.prog-seccion {
+    margin-bottom: 18px;
+}
+.prog-titulo {
+    background: var(--surface-2);
+    color: var(--text);
+    font-weight: 900;
+    font-size: 15px;
+    text-align: center;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+}
+.prog-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--border);
+    border-radius: 0 0 8px 8px;
+}
+.prog-tabla {
+    width: 100%;
+    min-width: 600px;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+.prog-tabla th {
+    background: #fff59d;
+    color: #5b4a00;
+    font-weight: 800;
+    text-align: center;
+    padding: 8px 6px;
+    white-space: nowrap;
+    border: 1px solid var(--border);
+}
+.prog-tabla td {
+    padding: 7px 6px;
+    border: 1px solid var(--border);
+    text-align: center;
+    vertical-align: middle;
+    color: var(--text);
+}
+.prog-tabla .prog-num {
+    font-weight: 700;
+    color: var(--text-muted);
+}
+.prog-tabla .prog-veh {
+    font-weight: 800;
+    background: var(--primary-50);
+    color: var(--primary-700);
+    white-space: nowrap;
+}
+.prog-tabla .prog-cond {
+    text-align: left;
+    min-width: 150px;
+}
+.prog-sincond {
+    color: var(--text-muted);
+    font-style: italic;
+    font-weight: 600;
+}

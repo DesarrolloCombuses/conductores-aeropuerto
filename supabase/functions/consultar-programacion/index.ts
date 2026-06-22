@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     // Todas las filas de esa fecha (con la programación a la que pertenecen).
     const { data, error } = await supabase
       .from("programacion_filas")
-      .select("row_key, base, vehiculo, programacion_id")
+      .select("row_key, base, vehiculo, programacion_id, row_data")
       .eq("fecha", dia)
       .limit(2000);
 
@@ -67,7 +67,12 @@ Deno.serve(async (req) => {
     }
     const filas = todas
       .filter((f) => Number(f.programacion_id) === maxPid)
-      .map((f) => ({ row_key: f.row_key, base: f.base, vehiculo: f.vehiculo }));
+      .map((f) => ({
+        row_key: f.row_key,
+        base: f.base,
+        vehiculo: f.vehiculo,
+        row_data: f.row_data ?? {},
+      }));
 
     return json({ success: true, fecha: dia, total: filas.length, filas });
   } catch (e) {
