@@ -1018,6 +1018,8 @@
             "#notifGate p{margin:0 0 22px;font-size:15px;color:#475569;line-height:1.5;}" +
             "#notifGate button.ng-main{background:#4f46e5;color:#fff;border:0;border-radius:12px;padding:16px 22px;font-size:16px;font-weight:800;cursor:pointer;width:100%;box-shadow:0 8px 24px rgba(79,70,229,.4);}" +
             "#notifGate .ng-help{margin-top:16px;font-size:13px;color:#334155;text-align:left;background:#f1f5f9;border-radius:12px;padding:14px;line-height:1.6;display:none;}" +
+            "#notifGate .ng-skip{margin-top:16px;background:none;border:0;color:#94a3b8;font-size:13px;text-decoration:underline;cursor:pointer;}" +
+            "#notifGate .ng-estado{margin-top:12px;font-size:11px;color:#cbd5e1;}" +
             "@keyframes ng-ring{0%,100%{transform:rotate(0);}20%{transform:rotate(14deg);}40%{transform:rotate(-12deg);}60%{transform:rotate(8deg);}80%{transform:rotate(-5deg);}}";
         document.head.appendChild(st);
     }
@@ -1034,7 +1036,6 @@
         if (document.getElementById("notifGate")) return;
 
         inyectarEstilosNotifGate();
-        const denied = Notification.permission === "denied";
         const gate = document.createElement("div");
         gate.id = "notifGate";
         gate.innerHTML =
@@ -1046,38 +1047,55 @@
                 '<p>Para enterarte al instante de cada <b>despacho</b>, esta app necesita enviarte avisos. Es necesario para tu trabajo.</p>' +
                 '<button type="button" class="ng-main">🔔 Activar notificaciones</button>' +
                 '<div class="ng-help"></div>' +
+                '<button type="button" class="ng-skip">Continuar sin activar por ahora</button>' +
+                '<div class="ng-estado"></div>' +
             '</div>';
         document.body.appendChild(gate);
 
         const btn = gate.querySelector(".ng-main");
         const help = gate.querySelector(".ng-help");
+        const estado = gate.querySelector(".ng-estado");
+
+        function refrescarEstado() {
+            const p = ("Notification" in window) ? Notification.permission : "no-soportado";
+            estado.textContent = "Estado del permiso: " + p;
+        }
 
         function mostrarAyuda() {
             help.style.display = "block";
-            help.innerHTML = "Las notificaciones están <b>bloqueadas</b>. Para activarlas:<br>" +
+            help.innerHTML = "Las notificaciones están <b>bloqueadas</b> en este navegador. Para activarlas:<br>" +
                 "1. Toca el <b>candado 🔒</b> (o los 3 puntos) junto a la dirección.<br>" +
                 "2. Entra en <b>Permisos</b> → <b>Notificaciones</b>.<br>" +
                 "3. Ponlas en <b>Permitir</b>.<br>" +
-                "4. Vuelve y toca <b>Ya las activé</b>.";
-            btn.textContent = "Ya las activé";
+                "4. Vuelve a esta pantalla (se cerrará sola).";
         }
 
-        if (denied) mostrarAyuda();
-
-        btn.addEventListener("click", async function () {
+        btn.addEventListener("click", function () {
             desbloquearAudio(); // aprovechamos el gesto para habilitar el sonido
-            if (Notification.permission === "denied") {
-                location.reload(); // re-evaluar por si las activó en ajustes
-                return;
-            }
-            let perm = "default";
-            try { perm = await Notification.requestPermission(); } catch (_) {}
-            if (perm === "granted") {
+            if (Notification.permission === "granted") { cerrarNotifGate(); return; }
+            if (Notification.permission === "denied") { mostrarAyuda(); refrescarEstado(); return; }
+            // permission === "default": pedimos el permiso
+            Promise.resolve(Notification.requestPermission()).then(function (perm) {
+                refrescarEstado();
+                if (perm === "granted") cerrarNotifGate();
+                else mostrarAyuda();
+            }).catch(function () { mostrarAyuda(); refrescarEstado(); });
+        });
+
+        // Salida para no dejar al conductor atascado si no puede activarlas.
+        gate.querySelector(".ng-skip").addEventListener("click", cerrarNotifGate);
+
+        // Si el conductor activa el permiso en Ajustes y vuelve a la app,
+        // detectamos el cambio y cerramos la pantalla automáticamente.
+        document.addEventListener("visibilitychange", function () {
+            if (document.visibilityState === "visible" &&
+                "Notification" in window && Notification.permission === "granted") {
                 cerrarNotifGate();
-            } else {
-                mostrarAyuda();
             }
         });
+
+        if (Notification.permission === "denied") mostrarAyuda();
+        refrescarEstado();
     }
 
     // Muestra una notificación del sistema operativo (PWA). Funciona con la app
