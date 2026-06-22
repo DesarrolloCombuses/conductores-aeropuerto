@@ -1065,9 +1065,19 @@
         if (g) g.remove();
     }
 
+    // ¿El dispositivo es iPhone/iPad? (instalación y notificaciones son distintas)
+    function esIOS() {
+        const ua = navigator.userAgent || "";
+        const iOSClasico = /iPhone|iPad|iPod/i.test(ua);
+        // iPadOS 13+ se hace pasar por Mac; lo detectamos por el touch
+        const iPadModerno = /Macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
+        return iOSClasico || iPadModerno;
+    }
+
     // Pide el permiso de notificaciones (tras un gesto) y cierra el gate si se concede.
     function solicitarPermisoNotif(onResultado) {
         desbloquearAudio();
+        if (!("Notification" in window)) { onResultado("no-soportado"); return; }
         if (Notification.permission === "granted") { onResultado("granted"); return; }
         if (Notification.permission === "denied") { onResultado("denied"); return; }
         Promise.resolve(Notification.requestPermission())
@@ -1079,20 +1089,32 @@
     // Con la app abierta, el aviso (banner + sonido) funciona sin permisos; las
     // notificaciones del sistema son un extra que mejora si la PWA está instalada.
     function mostrarNotifGate() {
-        if (!("Notification" in window)) return;
-        if (Notification.permission === "granted") return; // ya activadas
+        const instalada = appInstaladaPWA();
+        const ios = esIOS();
+        const soportaNotif = "Notification" in window;
+
+        // No molestar si ya está instalada y con permiso (o instalada sin soporte
+        // de notificaciones, como iPhone con iOS antiguo: no hay más que pedir).
+        if (instalada && (!soportaNotif || Notification.permission === "granted")) return;
         if (document.getElementById("notifGate")) return;
 
         inyectarEstilosNotifGate();
-        const instalada = appInstaladaPWA();
         const gate = document.createElement("div");
         gate.id = "notifGate";
 
-        const pasosInstalar =
-            "<b>En Android (Chrome):</b><br>" +
-            "1. Toca el menú <b>⋮</b> (arriba a la derecha).<br>" +
-            "2. Elige <b>Instalar app</b> o <b>Agregar a pantalla de inicio</b>.<br>" +
-            "3. Abre la app desde el <b>ícono</b> que aparece en tu celular.";
+        const pasosInstalar = ios
+            ? "<b>En iPhone (Safari):</b><br>" +
+              "1. Toca el botón <b>Compartir</b> (el cuadro con la flecha ↑, abajo).<br>" +
+              "2. Desliza y elige <b>Agregar a inicio</b>.<br>" +
+              "3. Abre la app desde el <b>ícono</b> que aparece en tu pantalla."
+            : "<b>En Android (Chrome):</b><br>" +
+              "1. Toca el menú <b>⋮</b> (arriba a la derecha) o el botón verde <b>Instalar app</b>.<br>" +
+              "2. Elige <b>Instalar app</b> o <b>Agregar a pantalla de inicio</b>.<br>" +
+              "3. Abre la app desde el <b>ícono</b> que aparece en tu celular.";
+
+        const textoBoton = instalada
+            ? "🔔 Activar notificaciones"
+            : (ios ? "Ya la agregué · Continuar" : "Ya la instalé · Continuar");
 
         gate.innerHTML =
             '<div class="ng-card">' +
@@ -1104,10 +1126,9 @@
                     ? "Para enterarte al instante de cada <b>despacho</b>, activa los avisos."
                     : "Para recibir los avisos de despacho, primero <b>instala</b> esta app en tu celular.") + '</p>' +
                 (instalada
-                    ? '<button type="button" class="ng-main">🔔 Activar notificaciones</button>'
+                    ? '<button type="button" class="ng-main">' + textoBoton + '</button><div class="ng-help"></div>'
                     : '<div class="ng-help" style="display:block">' + pasosInstalar + '</div>' +
-                      '<button type="button" class="ng-main">Ya la instalé · Activar avisos</button>') +
-                (instalada ? '<div class="ng-help"></div>' : '') +
+                      '<button type="button" class="ng-main">' + textoBoton + '</button>') +
                 '<button type="button" class="ng-skip">Continuar (la app sonará igual estando abierta)</button>' +
                 '<div class="ng-estado"></div>' +
             '</div>';
@@ -1118,22 +1139,30 @@
         const estado = gate.querySelector(".ng-estado");
 
         function refrescarEstado() {
-            estado.textContent = "Estado: " + (instalada ? "instalada · " : "no instalada · ") +
-                "permiso " + Notification.permission;
+            const permiso = soportaNotif ? Notification.permission : "no disponible";
+            estado.textContent = "Estado: " + (instalada ? "instalada · " : "no instalada · ") + "permiso " + permiso;
         }
 
         function mostrarAyudaBloqueado() {
             help.style.display = "block";
             help.innerHTML = "Las notificaciones están <b>bloqueadas</b>. Para activarlas:<br>" +
-                "1. Toca el <b>candado 🔒</b> junto a la dirección.<br>" +
-                "2. Entra en <b>Permisos</b> → <b>Notificaciones</b> → <b>Permitir</b>.<br>" +
+                "1. Abre los <b>ajustes del sitio</b> (candado 🔒 o ajustes del navegador).<br>" +
+                "2. Entra en <b>Notificaciones</b> → <b>Permitir</b>.<br>" +
                 "3. Vuelve a la app (se cierra sola).";
         }
 
         btn.addEventListener("click", function () {
+            // Si no está instalada, este botón solo continúa (la instalación es por
+            // el menú del navegador / Compartir, no por este botón).
+            if (!instalada) {
+                if (soportaNotif) solicitarPermisoNotif(function () { cerrarNotifGate(); });
+                else cerrarNotifGate();
+                return;
+            }
+            // Instalada: pedir permiso de notificaciones.
             solicitarPermisoNotif(function (perm) {
                 refrescarEstado();
-                if (perm === "granted") cerrarNotifGate();
+                if (perm === "granted" || perm === "no-soportado") cerrarNotifGate();
                 else if (perm === "denied") mostrarAyudaBloqueado();
             });
         });
@@ -1148,7 +1177,7 @@
             }
         });
 
-        if (Notification.permission === "denied") mostrarAyudaBloqueado();
+        if (soportaNotif && Notification.permission === "denied") mostrarAyudaBloqueado();
         refrescarEstado();
     }
 
