@@ -2514,9 +2514,20 @@
     // ============== Asistencias (ingresos/salidas de conductores) ==============
     let asistenciasLoading = false;
 
+    // Fuerza que un campo de texto solo acepte dígitos (filtra letras y símbolos
+    // mientras se escribe o se pega).
+    function soloDigitos(input) {
+        if (!input) return;
+        input.addEventListener("input", function () {
+            const limpio = input.value.replace(/\D/g, "");
+            if (input.value !== limpio) input.value = limpio;
+        });
+    }
+
     function initAsistencias() {
         const form = document.getElementById("asistenciasForm");
         if (!form) return;
+        soloDigitos(document.getElementById("asistenciasDni"));
         form.addEventListener("submit", function (e) {
             e.preventDefault();
             consultarAsistencias();
@@ -2643,6 +2654,7 @@
     function initDespachosDia() {
         const form = document.getElementById("despachosdiaForm");
         if (!form) return;
+        soloDigitos(document.getElementById("despachosdiaBus"));
         form.addEventListener("submit", function (e) {
             e.preventDefault();
             consultarDespachosDia();
