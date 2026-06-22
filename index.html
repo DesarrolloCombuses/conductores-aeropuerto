@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Llegadas JMC">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=no">
+    <title>Consulta de Llegadas JMC - Combuses</title>
+    <!-- Activa el modo consulta (solo lectura para conductores) en main.js -->
+    <script>window.MODO_CONSULTA = true;</script>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/svg+xml" href="icons/favicon.svg">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cbplebkmxrkaafqdhiyi.supabase.co">
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://docs.google.com">
+    <link rel="dns-prefetch" href="https://tile.openstreetmap.org">
+
+    <!-- Preload de recursos críticos para arrancar la descarga en paralelo -->
+    <link rel="preload" href="css/style.css" as="style">
+    <link rel="preload" href="js/config.js" as="script">
+    <link rel="preload" href="js/main.js" as="script">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- CSS crítico inline: pinta el splash mientras el resto del CSS llega -->
+    <style>
+        html, body { margin: 0; background: #f8f9fb; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+        #appSplash { position: fixed; inset: 0; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #f8f9fb; }
+        #appSplash .spinner { width: 36px; height: 36px; border: 3px solid #e5e7eb; border-top-color: #4f46e5; border-radius: 50%; animation: splash-spin 0.8s linear infinite; }
+        #appSplash .lbl { color: #6b7280; font-size: 13px; font-weight: 500; letter-spacing: 0.02em; }
+        @keyframes splash-spin { to { transform: rotate(360deg); } }
+        body.app-ready #appSplash { opacity: 0; pointer-events: none; transition: opacity 0.18s ease; }
+    </style>
+</head>
+<body>
+    <!-- Splash inicial: visible hasta que main.js marca body.app-ready -->
+    <div id="appSplash" aria-hidden="true">
+        <div class="spinner"></div>
+        <div class="lbl">Cargando Llegadas JMC...</div>
+    </div>
+
+    <!-- Pantalla de login (se oculta cuando hay sesión) -->
+    <div id="loginScreen" class="login-screen" hidden>
+        <div class="login-card">
+            <div class="login-logo" aria-hidden="true">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" fill="#4f46e5"/>
+                </svg>
+            </div>
+            <h1 class="login-title">Llegadas Aeropuerto JMC</h1>
+            <p class="login-subtitle">Inicia sesión para continuar</p>
+            <form id="loginForm" class="login-form">
+                <div class="form-row">
+                    <label for="loginEmail">Correo</label>
+                    <input id="loginEmail" type="email" autocomplete="username" required placeholder="usuario@combuses.com.co">
+                </div>
+                <div class="form-row">
+                    <label for="loginPass">Contraseña</label>
+                    <input id="loginPass" type="password" autocomplete="current-password" required placeholder="••••••••">
+                </div>
+                <div id="loginError" class="form-error" hidden></div>
+                <button id="loginSubmit" type="submit" class="btn btn-primary login-submit">Entrar</button>
+            </form>
+        </div>
+    </div>
+
+    <header class="topbar">
+        <div class="topbar-left">
+            <div class="logo" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+                </svg>
+            </div>
+            <div class="topbar-titles">
+                <h1>Consulta de Llegadas JMC</h1>
+                <div class="subtitle">Combuses · Consulta para conductores</div>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <span id="connection" class="badge badge-warn">Conectando...</span>
+            <div class="last-update">
+                <span class="muted">Actualizado</span>
+                <span id="lastUpdate">—</span>
+            </div>
+            <button id="btnLogout" class="btn-icon" type="button" title="Cerrar sesión" hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M16 17l5-5m0 0l-5-5m5 5H9M13 21H5a2 2 0 01-2-2V5a2 2 0 012-2h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="Vistas">
+        <button class="tab active" data-tab="mapa" role="tab" aria-selected="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z" fill="currentColor"/>
+            </svg>
+            <span>Mapa</span>
+        </button>
+        <button class="tab" data-tab="listas" role="tab" aria-selected="false">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" fill="currentColor"/>
+            </svg>
+            <span>Listas</span>
+            <span id="tabListasBadge" class="tab-badge">0</span>
+        </button>
+        <button class="tab" data-tab="realizados" role="tab" aria-selected="false">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Realizados</span>
+            <span id="tabRealizadosBadge" class="tab-badge">0</span>
+        </button>
+    </nav>
+
+    <main class="main">
+        <section id="paneMapa" class="pane active" role="tabpanel">
+            <div class="map-floating-stats">
+                <div class="mini-stat"><span id="miniTotal" class="mini-num">0</span><span class="mini-lbl">Buses</span></div>
+                <div class="mini-stat ok"><span id="miniListos" class="mini-num">0</span><span class="mini-lbl">Listos</span></div>
+                <div class="mini-stat warn"><span id="miniEspera" class="mini-num">0</span><span class="mini-lbl">Espera</span></div>
+            </div>
+            <div id="map"></div>
+        </section>
+
+        <section id="paneRealizados" class="pane" role="tabpanel">
+            <div class="despachos-head">
+                <div class="despachos-titles">
+                    <h2>Despachos realizados</h2>
+                    <div id="realizadosSubtitle" class="despachos-subtitle">Cargando...</div>
+                </div>
+                <div class="despachos-actions">
+                    <input type="search" id="searchRealizados" class="search-input"
+                        placeholder="Buscar bus, placa, itinerario, estado..." autocomplete="off">
+                    <label class="filter-toggle">
+                        <input type="checkbox" id="filterRealizadosActivos" checked>
+                        <span>Solo activos</span>
+                    </label>
+                </div>
+            </div>
+            <div id="realizadosBox" class="tabla-box despachos-box">
+                <div class="loading">Cargando despachos realizados...</div>
+            </div>
+            <div id="realizadosPager" class="pager" hidden>
+                <button type="button" id="pagerPrev" class="pager-btn">&laquo; Anterior</button>
+                <span id="pagerInfo" class="pager-info">Página 1 de 1</span>
+                <button type="button" id="pagerNext" class="pager-btn">Siguiente &raquo;</button>
+            </div>
+        </section>
+
+        <section id="paneDespachos" class="pane" role="tabpanel">
+            <div class="despachos-head">
+                <div class="despachos-titles">
+                    <h2>Despachos recientes</h2>
+                    <div id="despachosSubtitle" class="despachos-subtitle">Cargando...</div>
+                </div>
+                <div class="despachos-actions">
+                    <label class="filter-toggle">
+                        <input type="checkbox" id="filterActivos" checked>
+                        <span>Solo activos</span>
+                    </label>
+                    <button id="btnRefreshDespachos" class="btn btn-ghost btn-small" type="button">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <path d="M4 4v6h6M20 20v-6h-6M20 8a8 8 0 10-2 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Refrescar
+                    </button>
+                </div>
+            </div>
+            <div id="despachosBox" class="tabla-box despachos-box">
+                <div class="loading">Cargando despachos...</div>
+            </div>
+        </section>
+
+        <section id="paneListas" class="pane" role="tabpanel">
+            <div class="stats">
+                <div class="stat">
+                    <span id="statTotal" class="stat-num">0</span>
+                    <span class="stat-lbl">Total</span>
+                </div>
+                <div class="stat ok">
+                    <span id="statListos" class="stat-num">0</span>
+                    <span class="stat-lbl">Listos</span>
+                </div>
+                <div class="stat warn">
+                    <span id="statEspera" class="stat-num">0</span>
+                    <span class="stat-lbl">Espera</span>
+                </div>
+            </div>
+
+            <div id="chips" class="chips"></div>
+
+            <div id="tablaBox" class="tabla-box">
+                <div class="loading">Cargando llegadas...</div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="foot">
+        <span>Llegadas ordenadas por hora · "Listo" tras 3 h desde la última llegada 104</span>
+        <span id="appVersion" class="app-version">—</span>
+    </footer>
+
+    <!-- Modal de asignación de itinerario -->
+    <div id="assignModal" class="modal-backdrop" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="assignTitle">
+            <div class="modal-head">
+                <h2 id="assignTitle">Asignar itinerario</h2>
+                <button class="modal-close" type="button" aria-label="Cerrar" data-close>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+            <form id="assignForm" class="modal-body">
+                <div class="form-row">
+                    <label>Bus</label>
+                    <div id="assignBus" class="form-static">—</div>
+                </div>
+                <div class="form-row">
+                    <label>Conductor</label>
+                    <div id="assignDriver" class="form-static">—</div>
+                </div>
+                <div class="form-row">
+                    <label for="assignItin">Itinerario</label>
+                    <select id="assignItin" required></select>
+                </div>
+                <div class="form-row">
+                    <label for="assignObs">Observación (opcional)</label>
+                    <textarea id="assignObs" rows="2" placeholder="Notas para el operador..."></textarea>
+                </div>
+                <div id="assignError" class="form-error" hidden></div>
+            </form>
+            <div class="modal-foot">
+                <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+                <button type="submit" form="assignForm" id="assignSubmit" class="btn btn-primary">Asignar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de despacho manual -->
+    <div id="manualModal" class="modal-backdrop" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="manualTitle">
+            <div class="modal-head">
+                <h2 id="manualTitle">Despacho manual</h2>
+                <button class="modal-close" type="button" aria-label="Cerrar" data-close>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+            <form id="manualForm" class="modal-body">
+                <p class="modal-description">Enviar despacho manual a sonar-dispatch para cualquier vehículo.</p>
+                <div class="form-grid">
+                    <div class="form-row">
+                        <label for="manualInterno">Interno <span class="req">*</span></label>
+                        <div class="combobox" data-combobox="interno">
+                            <input id="manualInterno" type="text" placeholder="Buscar interno o placa..." autocomplete="off" required>
+                            <div class="combobox-list" role="listbox" hidden></div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label for="manualBase">Base</label>
+                        <input id="manualBase" type="text" placeholder="Base" readonly>
+                    </div>
+                    <div class="form-row">
+                        <label for="manualMid">MID <span class="req">*</span></label>
+                        <input id="manualMid" type="text" placeholder="MID" readonly required>
+                    </div>
+                    <div class="form-row">
+                        <label for="manualConductor">Conductor <span class="req">*</span></label>
+                        <div class="combobox" data-combobox="conductor">
+                            <input id="manualConductor" type="text" placeholder="Buscar nombre o cédula..." autocomplete="off" required>
+                            <div class="combobox-list" role="listbox" hidden></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label for="manualDriverId">Driver ID <span class="req">*</span></label>
+                    <input id="manualDriverId" type="text" placeholder="Driver ID" readonly required>
+                </div>
+                <div class="form-row">
+                    <label for="manualItin">Itinerario <span class="req">*</span></label>
+                    <select id="manualItin" required></select>
+                </div>
+                <div class="form-row">
+                    <label for="manualObs">Observaciones</label>
+                    <textarea id="manualObs" rows="2" placeholder="Observación opcional para el despacho manual"></textarea>
+                </div>
+                <div id="manualError" class="form-error" hidden></div>
+            </form>
+            <div class="modal-foot">
+                <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+                <button type="submit" form="manualForm" id="manualSubmit" class="btn btn-primary">Enviar despacho</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal genérico de confirmación -->
+    <div id="confirmModal" class="modal-backdrop" hidden>
+        <div class="modal modal-confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+            <div class="modal-body confirm-body">
+                <div id="confirmIcon" class="confirm-icon confirm-icon-warn">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h2 id="confirmTitle" class="confirm-title">¿Confirmar acción?</h2>
+                <p id="confirmMessage" class="confirm-message">Esta acción se realizará a continuación.</p>
+                <div id="confirmDetail" class="confirm-detail" hidden></div>
+            </div>
+            <div class="modal-foot confirm-foot">
+                <button type="button" id="confirmCancel" class="btn btn-ghost">Cancelar</button>
+                <button type="button" id="confirmAccept" class="btn btn-primary">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast de resultado -->
+    <div id="toast" class="toast" hidden></div>
+
+    <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="js/config.js"></script>
+    <script defer src="js/main.js"></script>
+</body>
+</html>

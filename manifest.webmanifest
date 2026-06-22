@@ -1,0 +1,41 @@
+{
+    "name": "Consulta Llegadas JMC - Conductores",
+    "short_name": "Consulta JMC",
+    "description": "Consulta en tiempo real de llegadas y despachos al Aeropuerto JMC para conductores - Combuses",
+    "lang": "es-CO",
+    "dir": "ltr",
+    "start_url": "./index.html",
+    "scope": "./",
+    "display": "standalone",
+    "display_override": ["standalone", "minimal-ui"],
+    "orientation": "any",
+    "theme_color": "#4f46e5",
+    "background_color": "#f8f9fb",
+    "categories": ["business", "productivity", "travel"],
+    "icons": [
+        {
+            "src": "icons/favicon.svg",
+            "type": "image/svg+xml",
+            "sizes": "any",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-192.png",
+            "type": "image/png",
+            "sizes": "192x192",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "type": "image/png",
+            "sizes": "512x512",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-maskable-512.png",
+            "type": "image/png",
+            "sizes": "512x512",
+            "purpose": "maskable"
+        }
+    ]
+}
