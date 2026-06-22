@@ -5,7 +5,7 @@
 // - Tiles del mapa (OSM):               Network First con fallback a cache
 // - API Supabase REST + Edge Functions: Network Only (datos frescos siempre)
 
-const VERSION = "consulta-v11";
+const VERSION = "consulta-v12";
 const CACHE_APP = "jmc-consulta-app-" + VERSION;
 const CACHE_CDN = "jmc-consulta-cdn-" + VERSION;
 const CACHE_TILES = "jmc-consulta-tiles-" + VERSION;
@@ -104,9 +104,10 @@ self.addEventListener("fetch", (event) => {
         return;
     }
 
-    // 4. Misma origen (app shell): Cache First con revalidación
+    // 4. Misma origen (app shell): Network First — con internet siempre trae
+    //    la última versión; la caché queda solo como respaldo sin conexión.
     if (url.origin === self.location.origin) {
-        event.respondWith(staleWhileRevalidate(req, CACHE_APP));
+        event.respondWith(networkFirst(req, CACHE_APP));
         return;
     }
 });
