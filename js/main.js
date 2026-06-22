@@ -182,6 +182,10 @@
             const inp = document.getElementById("asistenciasDni");
             if (inp) setTimeout(function () { inp.focus(); }, 50);
         }
+        if (name === "despachosdia") {
+            const inp = document.getElementById("despachosdiaBus");
+            if (inp) setTimeout(function () { inp.focus(); }, 50);
+        }
     }
 
     function capitalize(s) {
@@ -1565,11 +1569,21 @@
         }
         if (q) visibles = visibles.filter(function (r) { return realizadoMatchesSearch(r, q); });
 
+        // En modo consulta (app de conductores) solo se muestran los últimos 20
+        // despachos, ya filtrados por las condiciones de la pestaña.
+        const totalVisibles = visibles.length;
+        const LIMITE_VIVO = 20;
+        if (MODO_CONSULTA && visibles.length > LIMITE_VIVO) {
+            visibles = visibles.slice(0, LIMITE_VIVO);
+        }
+
         if (badge) badge.textContent = String(visibles.length);
         if (subtitle) {
             const activos = base.filter(function (r) { return r.estado === "ACTIVO"; }).length;
             const cancelados = base.length - activos;
-            subtitle.textContent = `${activos} activos · ${cancelados} cancelados · ${base.length} totales`;
+            subtitle.textContent = MODO_CONSULTA
+                ? `Últimos ${visibles.length} despachos · ${activos} activos`
+                : `${activos} activos · ${cancelados} cancelados · ${base.length} totales`;
         }
 
         if (!visibles.length) {
@@ -2623,6 +2637,112 @@
             </table>`;
     }
 
+    // ============== Despachos por vehículo (consulta últimos 2 días) ==============
+    let despachosdiaLoading = false;
+
+    function initDespachosDia() {
+        const form = document.getElementById("despachosdiaForm");
+        if (!form) return;
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            consultarDespachosDia();
+        });
+    }
+
+    // Formatea un ISO a "dd/mm HH:MM" en hora local.
+    function formatFechaHoraCorta(iso) {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return "—";
+        const dd = String(d.getDate()).padStart(2, "0");
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mi = String(d.getMinutes()).padStart(2, "0");
+        return dd + "/" + mm + " " + hh + ":" + mi;
+    }
+
+    async function consultarDespachosDia() {
+        const inp = document.getElementById("despachosdiaBus");
+        const box = document.getElementById("despachosdiaBox");
+        const subtitle = document.getElementById("despachosdiaSubtitle");
+        const btn = document.getElementById("despachosdiaBtn");
+        if (!inp || !box) return;
+
+        const bus = (inp.value || "").replace(/\D/g, "").trim();
+        if (!bus) {
+            box.innerHTML = `<div class="asis-empty">Escribe el número del bus.</div>`;
+            inp.focus();
+            return;
+        }
+        if (despachosdiaLoading) return;
+        despachosdiaLoading = true;
+        if (btn) btn.disabled = true;
+        box.innerHTML = `<div class="loading">Consultando...</div>`;
+        if (subtitle) subtitle.textContent = "Consultando bus " + bus + "...";
+
+        try {
+            const desde = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+            const { data, error } = await client
+                .from(cfg.TABLA_REALIZADOS)
+                .select(COLUMNAS_REALIZADOS_CONSULTA)
+                .eq("interno", bus)
+                .gte("created_at", desde)
+                .order("created_at", { ascending: false })
+                .limit(300);
+            if (error) throw error;
+            renderDespachosDia(bus, data || []);
+        } catch (err) {
+            console.error(err);
+            box.innerHTML = `<div class="asis-empty asis-error">${escapeHtml(err.message || String(err))}</div>`;
+            if (subtitle) subtitle.textContent = "No se pudo consultar.";
+        } finally {
+            despachosdiaLoading = false;
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    function renderDespachosDia(bus, filas) {
+        const box = document.getElementById("despachosdiaBox");
+        const subtitle = document.getElementById("despachosdiaSubtitle");
+        if (subtitle) subtitle.textContent = "Últimos 2 días";
+
+        const cabecera =
+            `<div class="asis-persona">` +
+                `<div class="asis-persona-nombre">Bus ${escapeHtml(bus)}</div>` +
+                `<div class="asis-persona-meta">` +
+                    (filas.length ? filas.length + " despacho(s) · últimos 2 días" : "Sin despachos en los últimos 2 días") +
+                `</div>` +
+            `</div>`;
+
+        if (!filas.length) {
+            box.innerHTML = cabecera +
+                `<div class="asis-empty">Este bus no tiene despachos registrados en los últimos 2 días.</div>`;
+            return;
+        }
+
+        const rows = filas.map(function (r) {
+            const activo = r.estado === "ACTIVO";
+            const pill = activo
+                ? `<span class="asis-pill asis-in">Activo</span>`
+                : `<span class="asis-pill asis-out">Cancelado</span>`;
+            return `
+                <tr>
+                    <td class="asis-fecha">${escapeHtml(formatFechaHoraCorta(r.created_at))}</td>
+                    <td>${escapeHtml(r.itinerario || "Sin itinerario")}</td>
+                    <td>${pill}</td>
+                </tr>`;
+        }).join("");
+
+        box.innerHTML = cabecera + `
+            <table class="asis-tabla">
+                <thead>
+                    <tr>
+                        <th>Fecha y hora</th><th>Itinerario</th><th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+    }
+
     function startApp() {
         if (appStarted) return;
         appStarted = true;
@@ -2630,6 +2750,7 @@
         initMap();
         initRealizadosControles();
         initAsistencias();
+        initDespachosDia();
         // En modo consulta no se inicializan los flujos de despacho/asignación.
         if (!MODO_CONSULTA) {
             initModal();
