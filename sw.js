@@ -5,7 +5,7 @@
 // - Tiles del mapa (OSM):               Network First con fallback a cache
 // - API Supabase REST + Edge Functions: Network Only (datos frescos siempre)
 
-const VERSION = "consulta-v13";
+const VERSION = "consulta-v14";
 const CACHE_APP = "jmc-consulta-app-" + VERSION;
 const CACHE_CDN = "jmc-consulta-cdn-" + VERSION;
 const CACHE_TILES = "jmc-consulta-tiles-" + VERSION;

@@ -1213,25 +1213,6 @@
         } catch (_) { /* noop */ }
     }
 
-    // Botón flotante temporal para probar la alerta sin esperar un despacho real.
-    function agregarBotonPruebaAlerta() {
-        if (document.getElementById("btnProbarAlerta")) return;
-        const b = document.createElement("button");
-        b.id = "btnProbarAlerta";
-        b.type = "button";
-        b.textContent = "🔔 Probar alerta";
-        b.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:99998;background:#4f46e5;color:#fff;border:0;border-radius:30px;padding:12px 18px;font-size:14px;font-weight:700;box-shadow:0 6px 20px rgba(79,70,229,.4);cursor:pointer;";
-        b.addEventListener("click", function () {
-            notificarDespacho({
-                interno: "999",
-                vehicle_id: "999",
-                itinerario: "Aeropuerto-San Diego-Tunel",
-                itinerario_id: "3385",
-                created_at: new Date().toISOString(),
-            });
-        });
-        document.body.appendChild(b);
-    }
 
     function notificarDespacho(reg) {
         inyectarEstilosAlerta();
@@ -2312,8 +2293,6 @@
             configurarInstalacion();
             // Pantalla obligatoria para activar las notificaciones.
             mostrarNotifGate();
-            // Botón temporal para probar la alerta.
-            agregarBotonPruebaAlerta();
         }
         if (navigator.onLine) {
             cargarInicial();
