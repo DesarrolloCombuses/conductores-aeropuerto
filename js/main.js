@@ -188,6 +188,8 @@
         }
     }
 
+    // (programación usa selector de fecha; no requiere enfocar un campo de texto)
+
     function capitalize(s) {
         return s.charAt(0).toUpperCase() + s.slice(1);
     }
@@ -2756,6 +2758,128 @@
             </table>`;
     }
 
+    // ============== Programación de conductores (por fecha) ==============
+    let programacionLoading = false;
+
+    function initProgramacion() {
+        const form = document.getElementById("programacionForm");
+        if (!form) return;
+        // Por defecto, la fecha de hoy.
+        const inp = document.getElementById("programacionFecha");
+        if (inp && !inp.value) {
+            const hoy = new Date();
+            inp.value = hoy.getFullYear() + "-" +
+                String(hoy.getMonth() + 1).padStart(2, "0") + "-" +
+                String(hoy.getDate()).padStart(2, "0");
+        }
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            consultarProgramacion();
+        });
+    }
+
+    // Extrae la hora "HH:MM" del row_key (ej. "SLOT:2026-04-29|3|11|SANDIEGO|02:00|...").
+    function horaDeRowKey(rowKey) {
+        const m = String(rowKey || "").match(/\b(\d{1,2}:\d{2})\b/);
+        if (!m) return "";
+        const partes = m[1].split(":");
+        return partes[0].padStart(2, "0") + ":" + partes[1];
+    }
+
+    async function consultarProgramacion() {
+        const inp = document.getElementById("programacionFecha");
+        const box = document.getElementById("programacionBox");
+        const subtitle = document.getElementById("programacionSubtitle");
+        const btn = document.getElementById("programacionBtn");
+        if (!inp || !box) return;
+
+        const fecha = (inp.value || "").trim();
+        if (!fecha) {
+            box.innerHTML = `<div class="asis-empty">Elige una fecha.</div>`;
+            return;
+        }
+        if (programacionLoading) return;
+        programacionLoading = true;
+        if (btn) btn.disabled = true;
+        box.innerHTML = `<div class="loading">Consultando...</div>`;
+        if (subtitle) subtitle.textContent = "Consultando...";
+
+        try {
+            const resp = await fetch(cfg.CONSULTAR_PROGRAMACION_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    apikey: cfg.SUPABASE_ANON_KEY,
+                    Authorization: "Bearer " + cfg.SUPABASE_ANON_KEY,
+                },
+                body: JSON.stringify({ fecha: fecha }),
+            });
+            const data = await resp.json().catch(function () { return {}; });
+            if (!resp.ok || !data.success) {
+                throw new Error(data.message || "Error " + resp.status);
+            }
+            renderProgramacion(fecha, data.filas || []);
+        } catch (err) {
+            console.error(err);
+            box.innerHTML = `<div class="asis-empty asis-error">${escapeHtml(err.message || String(err))}</div>`;
+            if (subtitle) subtitle.textContent = "No se pudo consultar.";
+        } finally {
+            programacionLoading = false;
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    function renderProgramacion(fecha, filas) {
+        const box = document.getElementById("programacionBox");
+        const subtitle = document.getElementById("programacionSubtitle");
+        if (subtitle) subtitle.textContent = formatFechaSolo(fecha);
+
+        // Añadir la hora extraída y ordenar por hora (luego base).
+        const items = filas.map(function (f) {
+            return {
+                hora: horaDeRowKey(f.row_key),
+                base: f.base || "—",
+                vehiculo: f.vehiculo || "—",
+            };
+        }).sort(function (a, b) {
+            if (a.hora !== b.hora) return a.hora.localeCompare(b.hora);
+            return String(a.base).localeCompare(String(b.base));
+        });
+
+        const cabecera =
+            `<div class="asis-persona">` +
+                `<div class="asis-persona-nombre">Programación ${escapeHtml(formatFechaSolo(fecha))}</div>` +
+                `<div class="asis-persona-meta">` +
+                    (items.length ? items.length + " turno(s) programado(s)" : "Sin programación para esta fecha") +
+                `</div>` +
+            `</div>`;
+
+        if (!items.length) {
+            box.innerHTML = cabecera +
+                `<div class="asis-empty">No hay programación cargada para este día.</div>`;
+            return;
+        }
+
+        const rows = items.map(function (r) {
+            return `
+                <tr>
+                    <td class="hora">${escapeHtml(r.hora || "—")}</td>
+                    <td>${escapeHtml(r.base)}</td>
+                    <td>${escapeHtml(r.vehiculo)}</td>
+                </tr>`;
+        }).join("");
+
+        box.innerHTML = cabecera + `
+            <table class="asis-tabla">
+                <thead>
+                    <tr>
+                        <th>Hora</th><th>Base</th><th>Vehículo</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+    }
+
     function startApp() {
         if (appStarted) return;
         appStarted = true;
@@ -2764,6 +2888,7 @@
         initRealizadosControles();
         initAsistencias();
         initDespachosDia();
+        initProgramacion();
         // En modo consulta no se inicializan los flujos de despacho/asignación.
         if (!MODO_CONSULTA) {
             initModal();

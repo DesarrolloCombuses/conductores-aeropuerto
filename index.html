@@ -144,6 +144,13 @@
             </svg>
             <span>Despachos día</span>
         </button>
+        <button class="tab" data-tab="programacion" role="tab" aria-selected="false">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" stroke-width="2"/>
+                <path d="M3 9h18M8 2v4M16 2v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>Programación</span>
+        </button>
         <button class="tab" data-tab="asistencias" role="tab" aria-selected="false">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -270,6 +277,22 @@
             </form>
             <div id="despachosdiaBox" class="tabla-box despachos-box">
                 <div class="asis-empty">Escribe el número del bus y presiona Consultar.</div>
+            </div>
+        </section>
+
+        <section id="paneProgramacion" class="pane" role="tabpanel">
+            <div class="despachos-head">
+                <div class="despachos-titles">
+                    <h2>Programación de conductores</h2>
+                    <div id="programacionSubtitle" class="despachos-subtitle">Elige una fecha para ver la programación del día.</div>
+                </div>
+            </div>
+            <form id="programacionForm" class="asis-form" autocomplete="off">
+                <input type="date" id="programacionFecha" class="search-input">
+                <button type="submit" id="programacionBtn" class="btn btn-primary btn-small">Consultar</button>
+            </form>
+            <div id="programacionBox" class="tabla-box despachos-box">
+                <div class="asis-empty">Elige una fecha y presiona Consultar.</div>
             </div>
         </section>
     </main>

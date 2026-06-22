@@ -22,6 +22,8 @@ window.APP_CONFIG = {
     CONSULTAR_ASISTENCIAS_URL: "https://cbplebkmxrkaafqdhiyi.supabase.co/functions/v1/consultar-asistencias",
     // Días por defecto de historial de asistencias a consultar (máx 90 en la Edge Function)
     ASISTENCIAS_DIAS: 90,
+    // Edge Function que devuelve la programación de un día (turnos por vehículo)
+    CONSULTAR_PROGRAMACION_URL: "https://cbplebkmxrkaafqdhiyi.supabase.co/functions/v1/consultar-programacion",
     // Nombre de la tabla donde se guardan los despachos realizados
     TABLA_REALIZADOS: "despachos_realizados",
     // Tabla de vehículos para el despacho manual (columnas: ID, INTERNO, Placa)
