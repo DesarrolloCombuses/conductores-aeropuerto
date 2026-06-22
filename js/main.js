@@ -2778,12 +2778,21 @@
         });
     }
 
-    // Extrae la hora "HH:MM" del row_key (ej. "SLOT:2026-04-29|3|11|SANDIEGO|02:00|...").
-    function horaDeRowKey(rowKey) {
-        const m = String(rowKey || "").match(/\b(\d{1,2}:\d{2})\b/);
-        if (!m) return "";
-        const partes = m[1].split(":");
-        return partes[0].padStart(2, "0") + ":" + partes[1];
+    // Interpreta el row_key de programación.
+    // Formato: "SLOT:FECHA|baseNum|posicion|RUTA|HORA1|HORA2|HORA3"
+    // Ej: "SLOT:2026-04-29|3|4|TERMINALDELNORTE|05:00|13:00|21:20"
+    function parseRowKey(rowKey) {
+        const partes = String(rowKey || "").split("|");
+        const ruta = partes[3] || "—";
+        // Las horas son los segmentos con formato HH:MM (desde la 5ª posición).
+        const horas = partes.slice(4)
+            .map(function (h) { return String(h).trim(); })
+            .filter(function (h) { return /^\d{1,2}:\d{2}$/.test(h); })
+            .map(function (h) {
+                const p = h.split(":");
+                return p[0].padStart(2, "0") + ":" + p[1];
+            });
+        return { ruta: ruta, horas: horas, primeraHora: horas[0] || "" };
     }
 
     async function consultarProgramacion() {
@@ -2834,23 +2843,28 @@
         const subtitle = document.getElementById("programacionSubtitle");
         if (subtitle) subtitle.textContent = formatFechaSolo(fecha);
 
-        // Añadir la hora extraída y ordenar por hora (luego base).
+        // Interpretar cada fila (ruta + horarios) y ordenar por la primera hora.
         const items = filas.map(function (f) {
+            const info = parseRowKey(f.row_key);
             return {
-                hora: horaDeRowKey(f.row_key),
-                base: f.base || "—",
                 vehiculo: f.vehiculo || "—",
+                ruta: info.ruta,
+                horas: info.horas,
+                primeraHora: info.primeraHora,
             };
         }).sort(function (a, b) {
-            if (a.hora !== b.hora) return a.hora.localeCompare(b.hora);
-            return String(a.base).localeCompare(String(b.base));
+            // Sin hora (ej. comodines) al final.
+            if (!a.primeraHora && b.primeraHora) return 1;
+            if (a.primeraHora && !b.primeraHora) return -1;
+            if (a.primeraHora !== b.primeraHora) return a.primeraHora.localeCompare(b.primeraHora);
+            return String(a.vehiculo).localeCompare(String(b.vehiculo));
         });
 
         const cabecera =
             `<div class="asis-persona">` +
                 `<div class="asis-persona-nombre">Programación ${escapeHtml(formatFechaSolo(fecha))}</div>` +
                 `<div class="asis-persona-meta">` +
-                    (items.length ? items.length + " turno(s) programado(s)" : "Sin programación para esta fecha") +
+                    (items.length ? items.length + " vehículo(s) programado(s)" : "Sin programación para esta fecha") +
                 `</div>` +
             `</div>`;
 
@@ -2861,11 +2875,12 @@
         }
 
         const rows = items.map(function (r) {
+            const horarios = r.horas.length ? r.horas.join(" · ") : "—";
             return `
                 <tr>
-                    <td class="hora">${escapeHtml(r.hora || "—")}</td>
-                    <td>${escapeHtml(r.base)}</td>
-                    <td>${escapeHtml(r.vehiculo)}</td>
+                    <td class="asis-fecha">${escapeHtml(r.vehiculo)}</td>
+                    <td>${escapeHtml(r.ruta)}</td>
+                    <td class="hora">${escapeHtml(horarios)}</td>
                 </tr>`;
         }).join("");
 
@@ -2873,7 +2888,7 @@
             <table class="asis-tabla">
                 <thead>
                     <tr>
-                        <th>Hora</th><th>Base</th><th>Vehículo</th>
+                        <th>Vehículo</th><th>Ruta</th><th>Horarios</th>
                     </tr>
                 </thead>
                 <tbody>${rows}</tbody>
