@@ -2020,6 +2020,24 @@ input[readonly] {
 .asis-empty.asis-error {
     color: var(--error-600);
 }
+/* Cabecera con el nombre de la persona consultada */
+.asis-persona {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+}
+.asis-persona-nombre {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+}
+.asis-persona-meta {
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
 /* Tabla de asistencias: estilos propios (no depende de table.arrivals) */
 .asis-tabla {
     width: 100%;
@@ -2082,15 +2100,10 @@ input[readonly] {
     }
     .asis-tabla thead th,
     .asis-tabla td {
-        padding: 11px 10px;
+        padding: 11px 12px;
     }
-    /* En celular ocultamos Lugar y Bus (suelen venir vacías) para que
-       Fecha/Hora/Tipo se vean cómodas sin scroll horizontal. */
-    .asis-tabla thead th:nth-child(4),
-    .asis-tabla td:nth-child(4),
-    .asis-tabla thead th:nth-child(5),
-    .asis-tabla td:nth-child(5) {
-        display: none;
+    .asis-persona-nombre {
+        font-size: 17px;
     }
     .asis-form {
         gap: 6px;

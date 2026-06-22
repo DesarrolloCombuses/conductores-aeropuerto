@@ -2574,15 +2574,28 @@
         const subtitle = document.getElementById("asistenciasSubtitle");
         const filas = data.asistencias || [];
         const nombre = (data.colaborador && data.colaborador.nombre) || "Conductor";
+        const dni = (data.colaborador && data.colaborador.dni) || "";
 
+        // El nombre va destacado en una cabecera dentro del recuadro; el
+        // subtítulo de la pestaña queda con el rango consultado.
         if (subtitle) {
-            subtitle.textContent = filas.length
-                ? nombre + " · " + filas.length + " registro(s) · últimos " + (data.dias || 30) + " días"
-                : nombre + " · sin registros en los últimos " + (data.dias || 30) + " días";
+            subtitle.textContent = "Últimos " + (data.dias || 30) + " días";
         }
 
+        // Cabecera con el nombre de la persona (siempre visible tras consultar).
+        const cabecera =
+            `<div class="asis-persona">` +
+                `<div class="asis-persona-nombre">${escapeHtml(nombre)}</div>` +
+                `<div class="asis-persona-meta">` +
+                    (dni ? "Cédula " + escapeHtml(dni) : "") +
+                    (dni && filas.length ? " · " : "") +
+                    (filas.length ? filas.length + " registro(s)" : "") +
+                `</div>` +
+            `</div>`;
+
         if (!filas.length) {
-            box.innerHTML = `<div class="asis-empty">No hay ingresos ni salidas registrados en este período.</div>`;
+            box.innerHTML = cabecera +
+                `<div class="asis-empty">No hay ingresos ni salidas registrados en este período.</div>`;
             return;
         }
 
@@ -2591,22 +2604,19 @@
             const pill = esEntrada
                 ? `<span class="asis-pill asis-in">Entrada</span>`
                 : `<span class="asis-pill asis-out">Salida</span>`;
-            const lugar = [r.base_operativa, r.punto_operativo].filter(Boolean).join(" · ") || "—";
             return `
                 <tr>
                     <td class="asis-fecha">${escapeHtml(formatFechaSolo(r.fecha))}</td>
                     <td class="hora">${escapeHtml(formatHoraSolo(r.hora))}</td>
                     <td>${pill}</td>
-                    <td>${escapeHtml(lugar)}</td>
-                    <td>${escapeHtml(r.vehiculo_reporte || "—")}</td>
                 </tr>`;
         }).join("");
 
-        box.innerHTML = `
-            <table class="tabla asis-tabla">
+        box.innerHTML = cabecera + `
+            <table class="asis-tabla">
                 <thead>
                     <tr>
-                        <th>Fecha</th><th>Hora</th><th>Tipo</th><th>Lugar</th><th>Bus</th>
+                        <th>Fecha</th><th>Hora</th><th>Tipo</th>
                     </tr>
                 </thead>
                 <tbody>${rows}</tbody>
