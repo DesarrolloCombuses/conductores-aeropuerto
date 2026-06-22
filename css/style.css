@@ -1938,9 +1938,8 @@ input[readonly] {
         font-size: 11px;
     }
 
-    /* Realizados: ocultar Pasajeros (5) y Observaciones (6) en móvil */
-    table.realizados-consulta th:nth-child(5), table.realizados-consulta td:nth-child(5),
-    table.realizados-consulta th:nth-child(6), table.realizados-consulta td:nth-child(6) {
+    /* Realizados: ocultar Observaciones (col 5) en móvil; deja Estado visible */
+    table.realizados-consulta th:nth-child(5), table.realizados-consulta td:nth-child(5) {
         display: none;
     }
 

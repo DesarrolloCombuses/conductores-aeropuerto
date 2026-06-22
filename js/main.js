@@ -1537,7 +1537,7 @@
                     data-mid="${escapeHtml(r.vehicle_id || "")}">Cancelar</button>`;
             }
 
-            // En modo consulta: solo lectura, sin editar pasajeros/observaciones ni cancelar.
+            // En modo consulta: solo lectura, sin pasajeros, sin editar ni cancelar.
             if (MODO_CONSULTA) {
                 return `
                     <tr data-id="${escapeHtml(r.id)}" data-reg-id="${escapeHtml(r.reg_id)}" data-mid="${escapeHtml(r.vehicle_id || "")}">
@@ -1545,7 +1545,6 @@
                         <td class="hace">${escapeHtml(hace)}</td>
                         <td class="interno">${escapeHtml(r.interno || "")}</td>
                         <td>${escapeHtml(r.itinerario || "")}</td>
-                        <td>${escapeHtml(String(r.pasajeros ?? 0))}</td>
                         <td>${escapeHtml(r.observaciones || "—")}</td>
                         <td><span class="estado-pill ${estadoCls}">${estadoTxt}</span></td>
                     </tr>
@@ -1588,7 +1587,6 @@
                         <th>Hace</th>
                         <th>Bus</th>
                         <th>Itinerario</th>
-                        <th>Pasajeros</th>
                         <th>Observaciones</th>
                         <th>Estado</th>
                     </tr>
