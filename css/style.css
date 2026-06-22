@@ -262,6 +262,15 @@ button {
     padding: 0 24px;
     gap: 4px;
     position: relative;
+    /* Permite deslizar las pestañas en pantallas angostas sin que se desborden */
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge antiguo */
+    -webkit-overflow-scrolling: touch;
+}
+.tabs::-webkit-scrollbar {
+    display: none; /* Chrome/Safari: oculta la barra de scroll horizontal */
 }
 
 .tab {
@@ -280,6 +289,8 @@ button {
     position: relative;
     transition: color var(--transition);
     border-radius: 0;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .tab:hover {
@@ -2004,6 +2015,37 @@ input[readonly] {
 .asis-empty.asis-error {
     color: var(--error-600);
 }
+/* Tabla de asistencias: estilos propios (no depende de table.arrivals) */
+.asis-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.asis-tabla thead th {
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-align: left;
+    padding: 10px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    border-bottom: 1px solid var(--border);
+}
+.asis-tabla td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: middle;
+    color: var(--text);
+    font-weight: 500;
+}
+.asis-tabla tbody tr:last-child td {
+    border-bottom: none;
+}
 .asis-tabla .asis-fecha {
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
@@ -2024,4 +2066,31 @@ input[readonly] {
 .asis-pill.asis-out {
     background: var(--error-50);
     color: var(--error-600);
+}
+
+/* Responsive: en pantallas angostas compactamos y ocultamos columnas
+   secundarias (Lugar y Bus suelen venir vacías) para que Fecha/Hora/Tipo
+   se vean cómodas sin scroll horizontal. */
+@media (max-width: 600px) {
+    .asis-tabla {
+        font-size: 12px;
+    }
+    .asis-tabla thead th,
+    .asis-tabla td {
+        padding: 10px 10px;
+    }
+}
+@media (max-width: 480px) {
+    .asis-tabla thead th:nth-child(4),
+    .asis-tabla td:nth-child(4),
+    .asis-tabla thead th:nth-child(5),
+    .asis-tabla td:nth-child(5) {
+        display: none;
+    }
+    .asis-form {
+        gap: 6px;
+    }
+    .asis-form .btn-small {
+        flex-shrink: 0;
+    }
 }
