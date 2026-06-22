@@ -5,7 +5,7 @@
 // - Tiles del mapa (OSM):               Network First con fallback a cache
 // - API Supabase REST + Edge Functions: Network Only (datos frescos siempre)
 
-const VERSION = "consulta-v19";
+const VERSION = "consulta-v20";
 const CACHE_APP = "jmc-consulta-app-" + VERSION;
 const CACHE_CDN = "jmc-consulta-cdn-" + VERSION;
 const CACHE_TILES = "jmc-consulta-tiles-" + VERSION;
@@ -163,4 +163,37 @@ async function trimCache(cacheName, maxItems) {
 // Mensaje para forzar update (lo usa el cliente desde main.js)
 self.addEventListener("message", (event) => {
     if (event.data === "SKIP_WAITING") self.skipWaiting();
+});
+
+// ============== WEB PUSH ==============
+// Llega un push (incluso con la app cerrada) → mostramos la notificación.
+self.addEventListener("push", (event) => {
+    let data = {};
+    try { data = event.data ? event.data.json() : {}; } catch (_) { data = {}; }
+    const title = data.title || "Nuevo despacho";
+    const options = {
+        body: data.body || "",
+        icon: "./icons/icon-192.png",
+        badge: "./icons/icon-192.png",
+        vibrate: [300, 150, 300, 150, 300],
+        tag: "despacho-jmc",
+        renotify: true,
+        requireInteraction: true,
+        data: { url: data.url || "./" },
+    };
+    event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Al tocar la notificación, abrir o enfocar la app.
+self.addEventListener("notificationclick", (event) => {
+    event.notification.close();
+    const destino = (event.notification.data && event.notification.data.url) || "./";
+    event.waitUntil(
+        self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((lista) => {
+            for (const c of lista) {
+                if ("focus" in c) return c.focus();
+            }
+            if (self.clients.openWindow) return self.clients.openWindow(destino);
+        })
+    );
 });

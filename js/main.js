@@ -1134,6 +1134,45 @@
         if (g) g.remove();
     }
 
+    // ===== Web Push: suscribir el dispositivo para recibir avisos con la app cerrada =====
+    function urlBase64ToUint8Array(base64String) {
+        const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const raw = atob(base64);
+        const arr = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+        return arr;
+    }
+
+    async function registrarPush() {
+        try {
+            if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+            if (!cfg.VAPID_PUBLIC_KEY) return;
+            if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+            const reg = await navigator.serviceWorker.ready;
+            let sub = await reg.pushManager.getSubscription();
+            if (!sub) {
+                sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(cfg.VAPID_PUBLIC_KEY),
+                });
+            }
+            const json = sub.toJSON();
+            if (!json || !json.endpoint || !json.keys) return;
+            // Guardar/actualizar la suscripción en Supabase (upsert por endpoint)
+            await client.from(cfg.TABLA_PUSH || "push_subscriptions").upsert({
+                endpoint: json.endpoint,
+                p256dh: json.keys.p256dh,
+                auth: json.keys.auth,
+                user_agent: navigator.userAgent,
+            }, { onConflict: "endpoint" });
+            console.log("[PUSH] Suscripción registrada");
+        } catch (err) {
+            console.warn("[PUSH] No se pudo suscribir:", err);
+        }
+    }
+
     // ¿El dispositivo es iPhone/iPad? (instalación y notificaciones son distintas)
     function esIOS() {
         const ua = navigator.userAgent || "";
@@ -1231,7 +1270,8 @@
             // Instalada: pedir permiso de notificaciones.
             solicitarPermisoNotif(function (perm) {
                 refrescarEstado();
-                if (perm === "granted" || perm === "no-soportado") cerrarNotifGate();
+                if (perm === "granted") { registrarPush(); cerrarNotifGate(); }
+                else if (perm === "no-soportado") cerrarNotifGate();
                 else if (perm === "denied") mostrarAyudaBloqueado();
             });
         });
@@ -2437,6 +2477,8 @@
             if (btnAyuda) btnAyuda.addEventListener("click", mostrarAyuda);
             // Pantalla obligatoria para activar las notificaciones.
             mostrarNotifGate();
+            // Si ya hay permiso, registrar el push para recibir avisos con la app cerrada.
+            if ("Notification" in window && Notification.permission === "granted") registrarPush();
         }
         if (navigator.onLine) {
             cargarInicial();

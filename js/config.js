@@ -8,6 +8,10 @@ window.APP_CONFIG = {
     SUPABASE_URL: "https://cbplebkmxrkaafqdhiyi.supabase.co",
     SUPABASE_ANON_KEY: "sb_publishable_DZCceNTENY4ViP17-eZrGg_bdMElZ9X",
     TABLA: "llegadas_104",
+    // Clave PÚBLICA VAPID para Web Push (la privada va como secret en Supabase)
+    VAPID_PUBLIC_KEY: "BPtESMW7un67_F9YGzFGZhugVdqbfrcBhH7k_HCy3I1sg89y-9lvXoFaOzIA7vJ4_49Nz1S7N9o2bdHZDTMm7XE",
+    // Tabla donde se guardan las suscripciones push de los conductores
+    TABLA_PUSH: "push_subscriptions",
     // Edge Function que asigna itinerario a un bus en Sonar
     SONAR_DISPATCH_URL: "https://cbplebkmxrkaafqdhiyi.supabase.co/functions/v1/sonar-dispatch",
     // Edge Function que consulta GET_DispatchedVehicles
