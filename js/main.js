@@ -1005,6 +1005,81 @@
         } catch (_) { /* noop */ }
     }
 
+    // ===== Pantalla obligatoria para activar notificaciones (conductores) =====
+    function inyectarEstilosNotifGate() {
+        if (document.getElementById("notifGateStyles")) return;
+        const st = document.createElement("style");
+        st.id = "notifGateStyles";
+        st.textContent =
+            "#notifGate{position:fixed;inset:0;z-index:100001;background:linear-gradient(160deg,#4f46e5,#3730a3);display:flex;align-items:center;justify-content:center;padding:24px;}" +
+            "#notifGate .ng-card{background:#fff;border-radius:22px;max-width:380px;width:100%;padding:32px 26px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.35);}" +
+            "#notifGate .ng-bell{width:84px;height:84px;margin:0 auto 18px;border-radius:50%;background:#eef2ff;display:flex;align-items:center;justify-content:center;animation:ng-ring 1.6s ease-in-out infinite;}" +
+            "#notifGate h2{margin:0 0 10px;font-size:22px;color:#1e293b;font-weight:800;}" +
+            "#notifGate p{margin:0 0 22px;font-size:15px;color:#475569;line-height:1.5;}" +
+            "#notifGate button.ng-main{background:#4f46e5;color:#fff;border:0;border-radius:12px;padding:16px 22px;font-size:16px;font-weight:800;cursor:pointer;width:100%;box-shadow:0 8px 24px rgba(79,70,229,.4);}" +
+            "#notifGate .ng-help{margin-top:16px;font-size:13px;color:#334155;text-align:left;background:#f1f5f9;border-radius:12px;padding:14px;line-height:1.6;display:none;}" +
+            "@keyframes ng-ring{0%,100%{transform:rotate(0);}20%{transform:rotate(14deg);}40%{transform:rotate(-12deg);}60%{transform:rotate(8deg);}80%{transform:rotate(-5deg);}}";
+        document.head.appendChild(st);
+    }
+
+    function cerrarNotifGate() {
+        const g = document.getElementById("notifGate");
+        if (g) g.remove();
+    }
+
+    // Muestra la pantalla de activación si las notificaciones no están concedidas.
+    function mostrarNotifGate() {
+        if (!("Notification" in window)) return; // navegador sin soporte
+        if (Notification.permission === "granted") return; // ya activadas
+        if (document.getElementById("notifGate")) return;
+
+        inyectarEstilosNotifGate();
+        const denied = Notification.permission === "denied";
+        const gate = document.createElement("div");
+        gate.id = "notifGate";
+        gate.innerHTML =
+            '<div class="ng-card">' +
+                '<div class="ng-bell">' +
+                    '<svg width="42" height="42" viewBox="0 0 24 24" fill="none"><path d="M12 2a6 6 0 0 0-6 6c0 4-2 5-2 7h16c0-2-2-3-2-7a6 6 0 0 0-6-6zm0 20a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z" fill="#4f46e5"/></svg>' +
+                '</div>' +
+                '<h2>Activa las notificaciones</h2>' +
+                '<p>Para enterarte al instante de cada <b>despacho</b>, esta app necesita enviarte avisos. Es necesario para tu trabajo.</p>' +
+                '<button type="button" class="ng-main">🔔 Activar notificaciones</button>' +
+                '<div class="ng-help"></div>' +
+            '</div>';
+        document.body.appendChild(gate);
+
+        const btn = gate.querySelector(".ng-main");
+        const help = gate.querySelector(".ng-help");
+
+        function mostrarAyuda() {
+            help.style.display = "block";
+            help.innerHTML = "Las notificaciones están <b>bloqueadas</b>. Para activarlas:<br>" +
+                "1. Toca el <b>candado 🔒</b> (o los 3 puntos) junto a la dirección.<br>" +
+                "2. Entra en <b>Permisos</b> → <b>Notificaciones</b>.<br>" +
+                "3. Ponlas en <b>Permitir</b>.<br>" +
+                "4. Vuelve y toca <b>Ya las activé</b>.";
+            btn.textContent = "Ya las activé";
+        }
+
+        if (denied) mostrarAyuda();
+
+        btn.addEventListener("click", async function () {
+            desbloquearAudio(); // aprovechamos el gesto para habilitar el sonido
+            if (Notification.permission === "denied") {
+                location.reload(); // re-evaluar por si las activó en ajustes
+                return;
+            }
+            let perm = "default";
+            try { perm = await Notification.requestPermission(); } catch (_) {}
+            if (perm === "granted") {
+                cerrarNotifGate();
+            } else {
+                mostrarAyuda();
+            }
+        });
+    }
+
     // Muestra una notificación del sistema operativo (PWA). Funciona con la app
     // abierta o minimizada; con la app totalmente cerrada haría falta Web Push.
     function notificacionSistema(titulo, cuerpo) {
@@ -2067,14 +2142,11 @@
             initManualModal();
             initDespachosControles();
         } else {
-            // Desbloquear el audio y pedir permiso de notificaciones en el primer
-            // gesto del conductor (los navegadores lo exigen tras una interacción).
-            function primerGesto() {
-                desbloquearAudio();
-                pedirPermisoNotificaciones();
-            }
-            document.addEventListener("click", primerGesto, { once: true });
-            document.addEventListener("touchstart", primerGesto, { once: true });
+            // Desbloquear el audio en el primer gesto del conductor.
+            document.addEventListener("click", desbloquearAudio, { once: true });
+            document.addEventListener("touchstart", desbloquearAudio, { once: true });
+            // Pantalla obligatoria para activar las notificaciones.
+            mostrarNotifGate();
             // Botón temporal para probar la alerta.
             agregarBotonPruebaAlerta();
         }
