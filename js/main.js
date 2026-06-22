@@ -1160,13 +1160,15 @@
             }
             const json = sub.toJSON();
             if (!json || !json.endpoint || !json.keys) return;
-            // Guardar/actualizar la suscripción en Supabase (upsert por endpoint)
-            await client.from(cfg.TABLA_PUSH || "push_subscriptions").upsert({
-                endpoint: json.endpoint,
-                p256dh: json.keys.p256dh,
-                auth: json.keys.auth,
-                user_agent: navigator.userAgent,
-            }, { onConflict: "endpoint" });
+            // Guardar/actualizar la suscripción vía función segura (la tabla
+            // está cerrada a anon; la función hace el upsert por dentro).
+            const { error } = await client.rpc("registrar_push", {
+                p_endpoint: json.endpoint,
+                p_p256dh: json.keys.p256dh,
+                p_auth: json.keys.auth,
+                p_user_agent: navigator.userAgent,
+            });
+            if (error) throw error;
             console.log("[PUSH] Suscripción registrada");
         } catch (err) {
             console.warn("[PUSH] No se pudo suscribir:", err);
