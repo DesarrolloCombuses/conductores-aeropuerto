@@ -1144,9 +1144,31 @@
         return arr;
     }
 
+    // Aviso flotante breve (confirma o explica el registro de notificaciones).
+    function avisoPush(texto, ok) {
+        try {
+            let t = document.getElementById("avisoPush");
+            if (!t) {
+                t = document.createElement("div");
+                t.id = "avisoPush";
+                t.style.cssText = "position:fixed;left:50%;bottom:18px;transform:translateX(-50%);" +
+                    "max-width:90%;z-index:99999;padding:12px 16px;border-radius:12px;font-size:14px;" +
+                    "font-weight:600;color:#fff;box-shadow:0 6px 24px rgba(0,0,0,.25);text-align:center;";
+                document.body.appendChild(t);
+            }
+            t.style.background = ok ? "#16a34a" : "#dc2626";
+            t.textContent = texto;
+            t.style.display = "block";
+            clearTimeout(t._timer);
+            t._timer = setTimeout(function () { t.style.display = "none"; }, ok ? 4000 : 9000);
+        } catch (_) {}
+    }
+
     async function registrarPush() {
         try {
-            if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+            if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+                avisoPush("Este navegador no soporta notificaciones push.", false); return;
+            }
             if (!cfg.VAPID_PUBLIC_KEY) return;
             if (!("Notification" in window) || Notification.permission !== "granted") return;
 
@@ -1159,7 +1181,9 @@
                 });
             }
             const json = sub.toJSON();
-            if (!json || !json.endpoint || !json.keys) return;
+            if (!json || !json.endpoint || !json.keys) {
+                avisoPush("No se pudo crear la suscripción push.", false); return;
+            }
             // Guardar/actualizar la suscripción vía función segura (la tabla
             // está cerrada a anon; la función hace el upsert por dentro).
             const { error } = await client.rpc("registrar_push", {
@@ -1170,8 +1194,10 @@
             });
             if (error) throw error;
             console.log("[PUSH] Suscripción registrada");
+            avisoPush("✓ Notificaciones activadas en este celular", true);
         } catch (err) {
             console.warn("[PUSH] No se pudo suscribir:", err);
+            avisoPush("Error registrando notificaciones: " + (err && err.message ? err.message : err), false);
         }
     }
 
@@ -1265,7 +1291,10 @@
             // Si no está instalada, este botón solo continúa (la instalación es por
             // el menú del navegador / Compartir, no por este botón).
             if (!instalada) {
-                if (soportaNotif) solicitarPermisoNotif(function () { cerrarNotifGate(); });
+                if (soportaNotif) solicitarPermisoNotif(function (perm) {
+                    if (perm === "granted") registrarPush();
+                    cerrarNotifGate();
+                });
                 else cerrarNotifGate();
                 return;
             }
@@ -1284,6 +1313,7 @@
         document.addEventListener("visibilitychange", function () {
             if (document.visibilityState === "visible" &&
                 "Notification" in window && Notification.permission === "granted") {
+                registrarPush();
                 cerrarNotifGate();
             }
         });
