@@ -610,6 +610,68 @@ table.consulta-arrivals tbody tr.fila-gps-alert:hover {
     text-align: center;
 }
 
+/* Pestaña Alertas: tarjetas de historial de despachos */
+.alertas-box {
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.alert-card {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-left: 4px solid #4f46e5;
+    border-radius: 12px;
+    padding: 14px 16px;
+}
+
+.alert-card-cancel {
+    opacity: 0.65;
+    border-left-color: #94a3b8;
+}
+
+.alert-card-icon {
+    font-size: 22px;
+    line-height: 1;
+}
+
+.alert-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.alert-card-bus {
+    font-weight: 800;
+    font-size: 16px;
+    color: var(--text);
+}
+
+.alert-card-itin {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.alert-card-time {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.alert-card-tag {
+    font-size: 11px;
+    font-weight: 700;
+    color: #b91c1c;
+    background: #fee2e2;
+    border-radius: 6px;
+    padding: 1px 6px;
+    vertical-align: middle;
+}
+
 table.arrivals th,
 table.arrivals td {
     padding: 12px 16px;

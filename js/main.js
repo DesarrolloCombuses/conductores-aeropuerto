@@ -912,6 +912,7 @@
             if (error) throw error;
             realizados = data || [];
             renderRealizados();
+            if (MODO_CONSULTA) renderAlertas();
         } catch (err) {
             console.warn("Error cargando realizados:", err);
             const box = document.getElementById("realizadosBox");
@@ -1270,6 +1271,50 @@
             if (v != null && String(v).toLowerCase().includes(q)) return true;
         }
         return false;
+    }
+
+    // Historial de alertas: muestra los despachos AEROPUERTO recientes en
+    // formato de tarjeta, igual que las alertas que suenan en vivo.
+    function renderAlertas() {
+        const box = document.getElementById("alertasBox");
+        const subtitle = document.getElementById("alertasSubtitle");
+        const badge = document.getElementById("tabAlertasBadge");
+        if (!box) return;
+
+        const alertas = realizados
+            .filter(esDespachoAeropuerto)
+            .slice()
+            .sort(function (a, b) {
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            })
+            .slice(0, 50); // últimas 50
+
+        if (badge) badge.textContent = String(alertas.length);
+        if (subtitle) subtitle.textContent = alertas.length
+            ? "Últimas " + alertas.length + " alertas de despacho"
+            : "Aún no hay alertas";
+
+        if (!alertas.length) {
+            box.innerHTML = '<div class="loading">Aún no hay alertas de despacho</div>';
+            return;
+        }
+
+        box.innerHTML = alertas.map(function (r) {
+            const bus = escapeHtml(r.interno || r.vehicle_id || "—");
+            const itin = escapeHtml(r.itinerario || "Sin itinerario");
+            const hora = escapeHtml(formatHora(r.created_at));
+            const hace = escapeHtml(humanizeAge(r.created_at));
+            const cancelado = r.estado !== "ACTIVO";
+            return '<div class="alert-card' + (cancelado ? ' alert-card-cancel' : '') + '">' +
+                    '<div class="alert-card-icon">🔔</div>' +
+                    '<div class="alert-card-body">' +
+                        '<div class="alert-card-bus">Bus ' + bus +
+                            (cancelado ? ' <span class="alert-card-tag">Cancelado</span>' : '') + '</div>' +
+                        '<div class="alert-card-itin">Despachado por: <b>' + itin + '</b></div>' +
+                        '<div class="alert-card-time">' + hora + ' · ' + hace + '</div>' +
+                    '</div>' +
+                '</div>';
+        }).join("");
     }
 
     // Chips de itinerario para la pestaña Realizados (modo consulta).
